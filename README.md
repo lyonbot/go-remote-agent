@@ -14,6 +14,7 @@ It auto-reconnects to server. Agent doesn't need a public IP.
 ```sh
 export GOARCH=amd64 GOOS=linux
 go build -o agent_linux_amd64 main.go
+go build -ldflags "-s -w" -o agent_linux_amd64 main.go
 ```
 
 Then run it:
