@@ -95,6 +95,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 	} else if data := r.FormValue("stdin"); data != "" {
 		stdin = true
 		tunnel.Stdin <- []byte(data)
+		close(tunnel.Stdin)
 	} else {
 		close(tunnel.Stdin)
 	}
