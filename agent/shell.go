@@ -70,10 +70,10 @@ func run_shell(task *biz.AgentNotify) {
 		defer wg.Done()
 
 		defer r.Close()
-		data := make([]byte, 1025)
-		data[0] = prefix
 
 		for {
+			data := make([]byte, 1025)
+			data[0] = prefix
 			n, err := r.Read(data[1:])
 			if err != nil {
 				break
