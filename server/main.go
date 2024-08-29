@@ -13,7 +13,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var ws = websocket.Upgrader{} // use default options
+var ws = websocket.Upgrader{
+	EnableCompression: true,
+	CheckOrigin: func(r *http.Request) bool {
+		// accept all origin -- be good with reverse proxies
+		return true
+	},
+}
 
 func RunServer() {
 	addr := fmt.Sprintf("%s:%d", biz.Config.Addr, biz.Config.Port)
