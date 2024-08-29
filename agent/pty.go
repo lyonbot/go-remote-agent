@@ -53,6 +53,7 @@ func run_pty(task *biz.AgentNotify) {
 			} else {
 				cmd_str := strings.Split(string(recv[1:]), "\x00")
 				c := exec.Command(cmd_str[0], cmd_str[1:]...)
+				c.Env = append(c.Env, "TERM=xterm-256color")
 				new_pty, err := ptylib.Start(c)
 				if err != nil {
 					write_debug_message(err.Error())
