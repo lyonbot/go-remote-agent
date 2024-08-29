@@ -14,7 +14,7 @@ It auto-reconnects to server. Agent doesn't need a public IP.
 ```sh
 export GOARCH=amd64 GOOS=linux
 go build -o agent_linux_amd64 main.go
-go build -ldflags "-s -w" -o agent_linux_amd64 main.go
+go build -ldflags "-s -w" -tags release -o agent_linux_amd64 main.go
 ```
 
 Then run it:
@@ -60,7 +60,24 @@ A->S
 - `0x00 <int32_code>` - exit code
 - `0x01 <data>` - stdout
 - `0x02 <data>` - stderr
-- `0x03 <error_msg>` - debug message
+- `0x03 <message_str>` - debug message
+
+#### pty session
+
+In pty session, the server will act as transparent proxy between client and agent. Hence the "S" below can be considered as "client" too.
+
+S->A:
+
+- `0x00 <data>` - pty data
+- `0x01 <cmd>` - start a pty session. cmd is usually `sh`. if has parameters, use `\x00` as separator
+- `0x02` - close pty
+
+A->S:
+
+- `0x00 <data>` - pty data
+- `0x01` - pty opened
+- `0x02` - pty closed
+- `0x03 <message_str>` - debug message
 
 ### POST /api/client/:agent_name/exec/
 
@@ -79,6 +96,14 @@ Run a command on the agent. The payload is a FormData:
 It streams the response to the client.
 
 Note: check status must be 200, otherwise the body is error message.
+
+### GET /api/client/:agent_name/pty/
+
+For client.
+
+Open a pty session. This is a WebSocket connection.
+
+The data protocol is same as above "pty session" section.
 
 ## How WebSocket works
 

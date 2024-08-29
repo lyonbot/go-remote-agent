@@ -6,3 +6,10 @@ func Defaults(s string, def string) string {
 	}
 	return s
 }
+
+func PrependBytes(prefix, data []byte) []byte {
+	out := make([]byte, len(prefix)+len(data))
+	copy(out, prefix)
+	copy(out[len(prefix):], data)
+	return out
+}

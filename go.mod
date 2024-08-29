@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	github.com/avast/retry-go v3.0.0+incompatible // indirect
+	github.com/creack/pty v1.1.23 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240612014219-fbbf4953d986 // indirect
 	github.com/tinylib/msgp v1.2.0 // indirect

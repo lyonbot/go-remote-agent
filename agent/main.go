@@ -59,11 +59,12 @@ func listen() {
 
 func RunAgent() {
 	go listen()
-	for {
-		msg := <-task_stream
-
-		if msg.Type == "shell" {
+	for msg := range task_stream {
+		switch msg.Type {
+		case "shell":
 			go run_shell(msg)
+		case "pty":
+			go run_pty(msg)
 		}
 	}
 }

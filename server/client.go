@@ -18,19 +18,14 @@ type ClientTunnel struct {
 	Token string
 	Agent string
 
-	RawFromAgent *chan []byte // cloned from agent raw ws data.
-	Stdin        chan []byte  // for client to write
-	Stdout       *chan []byte // for agent to write
-	Stderr       *chan []byte // for agent to write
-	ExitCode     chan int32   // for agent to write
-
-	// to be filled
+	ToAgent  <-chan []byte
+	ToServer chan<- []byte
 }
 
 var ClientTunnels = sync.Map{} // map[string]*ClientTunnel
 
 // make a empty client tunnel. you shall fill the content
-func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, err error) {
+func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, C_to_agent chan<- []byte, C_to_server <-chan []byte, err error) {
 	agent_name := r.PathValue("agent_name")
 	if agent_raw, ok := agents.Load(agent_name); ok {
 		agent = agent_raw.(*Agent)
@@ -39,13 +34,18 @@ func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, err 
 		return
 	}
 
+	to_agent := make(chan []byte, 5)
+	to_server := make(chan []byte, 5)
+
+	C_to_agent = (chan<- []byte)(to_agent)
+	C_to_server = (<-chan []byte)(to_server)
+
 	token := fmt.Sprintf("%x-%x", time.Now().Unix(), rand.Int31())
 	tunnel = &ClientTunnel{
 		Token:    token,
 		Agent:    agent_name,
-		Stdin:    make(chan []byte, 1024),
-		ExitCode: make(chan int32, 1),
-		// optional channels are created when needed
+		ToAgent:  to_agent,
+		ToServer: to_server,
 	}
 	ClientTunnels.Store(token, tunnel)
 
@@ -67,37 +67,36 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 
 	// make a tunnel
 
-	tunnel, agent, err := makeClientTunnel(r)
+	wg := sync.WaitGroup{}
+	tunnel, agent, C_to_agent, C_to_server, err := makeClientTunnel(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if full {
-		ch := make(chan []byte, 5)
-		tunnel.RawFromAgent = &ch
-	} else {
-		if stdout {
-			ch := make(chan []byte, 5)
-			tunnel.Stdout = &ch
-		}
-		if stderr {
-			ch := make(chan []byte, 5)
-			tunnel.Stderr = &ch
-		}
-	}
+	{ // handle stdin
+		C_stdin := make(chan []byte, 5)
 
-	// handle stdin
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// no need to close -- agent will close it.
 
-	if file, headers, err := r.FormFile("stdin"); err == nil && headers != nil {
-		stdin = true
-		go utils.ReaderToChannel(tunnel.Stdin, file)
-	} else if data := r.FormValue("stdin"); data != "" {
-		stdin = true
-		tunnel.Stdin <- []byte(data)
-		close(tunnel.Stdin)
-	} else {
-		close(tunnel.Stdin)
+			for data := range C_stdin {
+				C_to_agent <- utils.PrependBytes([]byte{0x00}, data)
+			}
+		}()
+
+		if file, headers, err := r.FormFile("stdin"); err == nil && headers != nil {
+			stdin = true
+			go utils.ReaderToChannel(C_stdin, file)
+		} else if data := r.FormValue("stdin"); data != "" {
+			stdin = true
+			C_stdin <- []byte(data)
+			close(C_stdin)
+		} else {
+			close(C_stdin)
+		}
 	}
 
 	// send msg to agent
@@ -124,51 +123,95 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	writer := w.(io.Writer)
-
-	wg := sync.WaitGroup{}
+	write_to_http := func(data []byte) {
+		writer.Write(data)
+		w.(http.Flusher).Flush()
+	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for exit_code := range tunnel.ExitCode {
-			// TODO: shall we print to client?
-			log.Printf("client: %s exit code: %d", agent.Name, exit_code)
+
+		for data := range C_to_server {
+			if full {
+				binary.Write(writer, binary.LittleEndian, uint32(len(data)))
+				write_to_http(data)
+			}
+
+			switch data[0] {
+			case 0x00:
+				exit_code := int32(binary.LittleEndian.Uint32(data[1:]))
+				log.Printf("client: %s exit code: %d", agent.Name, exit_code)
+
+			case 0x01:
+				if !full && stdout {
+					write_to_http(data[1:])
+				}
+
+			case 0x02:
+				if !full && stderr {
+					write_to_http(data[1:])
+				}
+
+			case 0x03:
+				log.Println("client:", agent.Name, "debug:", string(data[1:]))
+			}
 		}
 	}()
 
-	if tunnel.Stdout != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for data := range *tunnel.Stdout {
-				writer.Write(data)
-				w.(http.Flusher).Flush()
-			}
-		}()
+	wg.Wait()
+}
+
+func handleClientPty(w http.ResponseWriter, r *http.Request) {
+	// websocket to client
+	c, err := ws.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	defer c.Close()
+
+	wg := sync.WaitGroup{}
+	ch := utils.WSConnToChannels(c, &wg)
+	C_from_client := ch.Read
+	C_to_client := ch.Write
+
+	// make a tunnel
+	tunnel, agent, C_to_agent, C_from_agent, err := makeClientTunnel(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	if tunnel.Stderr != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for data := range *tunnel.Stderr {
-				writer.Write(data)
-				w.(http.Flusher).Flush()
-			}
-		}()
+	// notify agent
+	msg := biz.AgentNotify{
+		Type: "pty",
+		Id:   tunnel.Token,
 	}
+	msg_data, _ := msg.MarshalMsg(nil)
+	agent.Chan <- msg_data
 
-	if tunnel.RawFromAgent != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for data := range *tunnel.RawFromAgent {
-				binary.Write(writer, binary.LittleEndian, uint32(len(data)))
-				writer.Write(data)
-				w.(http.Flusher).Flush()
-			}
-		}()
-	}
+	// proxy agent's data
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(C_to_client)
+		defer c.Close()
+
+		for data := range C_from_agent {
+			C_to_client <- data
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(C_to_agent)
+
+		for data := range C_from_client {
+			C_to_agent <- data
+		}
+	}()
 
 	wg.Wait()
 }

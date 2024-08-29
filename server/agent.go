@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/binary"
 	"io"
 	"log"
@@ -112,61 +111,40 @@ func handleAgentTaskWSRequest(w http.ResponseWriter, r *http.Request) {
 	wg := sync.WaitGroup{}
 
 	ch := utils.WSConnToChannels(c, &wg)
+	C_closed_from_agent := make(chan struct{}, 1)
 
 	wg.Add(2)
 
-	// write stdin / signal
 	go func() {
 		defer wg.Done()
-		for data := range client.Stdin {
-			ch.Write <- bytes.Join([][]byte{[]byte{0x00}, data}, []byte{})
-		}
-		ch.Write <- []byte{0x01} // close stdin
-	}()
+		defer c.Close()
+		defer close(ch.Write)
 
-	// read stdout / stderr / exit code etc.
-	go func() {
-		defer close(client.ExitCode)
-		if client.Stdout != nil {
-			defer close(*client.Stdout)
-		}
-		if client.Stderr != nil {
-			defer close(*client.Stderr)
-		}
-		if client.RawFromAgent != nil {
-			defer close(*client.RawFromAgent)
-		}
-		defer wg.Done()
-
-		for data := range ch.Read {
-			// clone raw data to client, if needed
-			if client.RawFromAgent != nil {
-				*client.RawFromAgent <- bytes.Clone(data)
-			}
-
-			t := data[0]
-
-			if t == 0x00 {
-				exit_code := int32(binary.LittleEndian.Uint32(data[1:]))
-				client.ExitCode <- exit_code
+		for {
+			select {
+			case data, ok := <-client.ToAgent:
+				if !ok {
+					// no more data to agent, close connection
+					return
+				}
+				ch.Write <- data
+			case <-C_closed_from_agent:
+				// WARNING: this may cause client.ToAgent not closed?
 				return
 			}
-
-			if t == 0x01 && client.Stdout != nil {
-				*client.Stdout <- data[1:]
-				continue
-			}
-
-			if t == 0x02 && client.Stderr != nil {
-				*client.Stderr <- data[1:]
-				continue
-			}
-
-			if t == 0x03 {
-				log.Println("client:", agent.Name, "debug:", string(data[1:]))
-				continue
-			}
 		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		defer close(client.ToServer)
+
+		for data := range ch.Read {
+			client.ToServer <- data
+		}
+
+		C_closed_from_agent <- struct{}{}
+		close(C_closed_from_agent)
 	}()
 
 	wg.Wait()

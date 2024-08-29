@@ -2,7 +2,6 @@ package utils
 
 import (
 	"io"
-	"log"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -19,6 +18,28 @@ func ReaderToChannel(ch chan<- []byte, r io.Reader) {
 			break
 		}
 		ch <- buf[:n]
+	}
+}
+
+func MakeChanIf[Result any](cond bool, size int) chan Result {
+	if cond {
+		return make(chan Result, size)
+	}
+
+	return nil
+}
+
+// only close ch if ch is not nil
+func TryClose[Result any](ch chan<- Result) {
+	if ch != nil {
+		close(ch)
+	}
+}
+
+// only write data to ch if ch is not nil
+func TryWrite[Result any](ch chan<- Result, data Result) {
+	if ch != nil {
+		ch <- data
 	}
 }
 
@@ -43,6 +64,7 @@ type WSConnToChannelsResult struct {
 func WSConnToChannels(c *websocket.Conn, wg *sync.WaitGroup) *WSConnToChannelsResult {
 	read := make(chan []byte, 5)
 	write := make(chan []byte, 5)
+	closed := make(chan struct{}, 1)
 
 	wg.Add(2)
 
@@ -56,18 +78,33 @@ func WSConnToChannels(c *websocket.Conn, wg *sync.WaitGroup) *WSConnToChannelsRe
 			if err != nil {
 				break
 			}
-			read <- data
+
+			if len(data) > 0 {
+				read <- data
+			}
 		}
+
+		closed <- struct{}{}
+		close(closed)
 	}()
 
 	// write to conn
 	go func() {
 		defer wg.Done()
+		defer c.Close()
 
-		for data := range write {
-			if err := c.WriteMessage(websocket.BinaryMessage, data); err != nil {
-				log.Println("ws write error:", err)
-				// close(write) // "write" shall be closed by outside
+		for {
+			select {
+			case data, ok := <-write:
+				if !ok {
+					// write channel closed
+					return
+				}
+				if err := c.WriteMessage(websocket.BinaryMessage, data); err != nil {
+					return
+				}
+
+			case <-closed:
 				return
 			}
 		}

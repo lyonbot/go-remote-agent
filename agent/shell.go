@@ -19,7 +19,6 @@ import (
 func run_shell(task *biz.AgentNotify) {
 	url := biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name + "/" + task.Id
 	url = strings.Replace(url, "http", "ws", 1)
-
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		return
@@ -35,14 +34,8 @@ func run_shell(task *biz.AgentNotify) {
 	code := int32(-1)
 
 	print_error_message := func(msg string) {
-		bytes := []byte(msg)
-		// concat with 0x03
-		data := make([]byte, len(bytes)+1)
-		data[0] = 0x03
-		copy(data[1:], bytes)
-
 		log.Println("shell:", msg)
-		ws.Write <- data
+		ws.Write <- utils.PrependBytes([]byte{0x03}, []byte(msg))
 	}
 
 	// pipes
