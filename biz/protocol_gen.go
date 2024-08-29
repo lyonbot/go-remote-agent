@@ -233,3 +233,181 @@ func (z *AgentNotify) Msgsize() (s int) {
 	s = 1 + 5 + msgp.StringPrefixSize + len(z.Type) + 3 + msgp.StringPrefixSize + len(z.Id) + 4 + msgp.StringPrefixSize + len(z.Cmd) + 10 + msgp.BoolSize + 12 + msgp.BoolSize + 12 + msgp.BoolSize
 	return
 }
+
+// DecodeMsg implements msgp.Decodable
+func (z *FileInfo) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "path":
+			z.Path, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Path")
+				return
+			}
+		case "size":
+			z.Size, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "Size")
+				return
+			}
+		case "mode":
+			z.Mode, err = dc.ReadUint32()
+			if err != nil {
+				err = msgp.WrapError(err, "Mode")
+				return
+			}
+		case "mtime":
+			z.Mtime, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "Mtime")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *FileInfo) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 4
+	// write "path"
+	err = en.Append(0x84, 0xa4, 0x70, 0x61, 0x74, 0x68)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Path)
+	if err != nil {
+		err = msgp.WrapError(err, "Path")
+		return
+	}
+	// write "size"
+	err = en.Append(0xa4, 0x73, 0x69, 0x7a, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.Size)
+	if err != nil {
+		err = msgp.WrapError(err, "Size")
+		return
+	}
+	// write "mode"
+	err = en.Append(0xa4, 0x6d, 0x6f, 0x64, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint32(z.Mode)
+	if err != nil {
+		err = msgp.WrapError(err, "Mode")
+		return
+	}
+	// write "mtime"
+	err = en.Append(0xa5, 0x6d, 0x74, 0x69, 0x6d, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.Mtime)
+	if err != nil {
+		err = msgp.WrapError(err, "Mtime")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *FileInfo) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 4
+	// string "path"
+	o = append(o, 0x84, 0xa4, 0x70, 0x61, 0x74, 0x68)
+	o = msgp.AppendString(o, z.Path)
+	// string "size"
+	o = append(o, 0xa4, 0x73, 0x69, 0x7a, 0x65)
+	o = msgp.AppendInt64(o, z.Size)
+	// string "mode"
+	o = append(o, 0xa4, 0x6d, 0x6f, 0x64, 0x65)
+	o = msgp.AppendUint32(o, z.Mode)
+	// string "mtime"
+	o = append(o, 0xa5, 0x6d, 0x74, 0x69, 0x6d, 0x65)
+	o = msgp.AppendInt64(o, z.Mtime)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *FileInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "path":
+			z.Path, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Path")
+				return
+			}
+		case "size":
+			z.Size, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Size")
+				return
+			}
+		case "mode":
+			z.Mode, bts, err = msgp.ReadUint32Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Mode")
+				return
+			}
+		case "mtime":
+			z.Mtime, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Mtime")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *FileInfo) Msgsize() (s int) {
+	s = 1 + 5 + msgp.StringPrefixSize + len(z.Path) + 5 + msgp.Int64Size + 5 + msgp.Uint32Size + 6 + msgp.Int64Size
+	return
+}

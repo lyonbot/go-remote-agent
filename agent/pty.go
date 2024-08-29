@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/binary"
 	"os"
 	"os/exec"
 	"remote-agent/biz"
@@ -45,7 +47,6 @@ func run_pty(task *biz.AgentNotify) {
 			if pty != nil {
 				pty.Write(recv[1:])
 			}
-			continue
 
 		case 0x01:
 			if pty != nil {
@@ -83,7 +84,6 @@ func run_pty(task *biz.AgentNotify) {
 					ws.Write <- []byte{0x01} // pty opened
 				}
 			}
-			continue
 
 		case 0x02:
 			if pty != nil {
@@ -91,7 +91,98 @@ func run_pty(task *biz.AgentNotify) {
 					write_debug_message(err.Error())
 				}
 			}
-			continue
+
+		case 0x03: // upload file
+			offset := int64(binary.LittleEndian.Uint64(recv[1:]))
+			length := int64(binary.LittleEndian.Uint64(recv[9:]))
+			data_since := int64(len(recv)) - length
+			path := string(recv[17:data_since])
+			data := recv[data_since:]
+			if err := write_file_chunk(path, offset, data); err != nil {
+				write_debug_message(err.Error())
+			}
+
+		case 0x04: // read file info
+			path := string(recv[1:])
+			if info, err := os.Stat(path); err == nil {
+				msg := biz.FileInfo{
+					Path:  path,
+					Size:  int64(info.Size()),
+					Mode:  uint32(info.Mode()),
+					Mtime: info.ModTime().Unix(),
+				}
+				msg_bytes, err := msg.MarshalMsg(nil)
+				if err != nil {
+					write_debug_message(err.Error())
+				} else {
+					ws.Write <- utils.PrependBytes([]byte{0x04}, msg_bytes)
+				}
+			} else {
+				write_debug_message(err.Error())
+			}
+
+		case 0x05: // read file chunk
+			offset := int64(binary.LittleEndian.Uint64(recv[1:]))
+			length := int64(binary.LittleEndian.Uint64(recv[9:]))
+			file_path := string(recv[17:])
+
+			data, err := read_file_chunk(file_path, offset, length)
+			if data == nil {
+				write_debug_message(err.Error())
+			} else {
+				actual_length := int64(len(data))
+				ws.Write <- bytes.Join([][]byte{
+					[]byte{0x05},
+					binary.LittleEndian.AppendUint64(nil, uint64(offset)),
+					binary.LittleEndian.AppendUint64(nil, uint64(actual_length)),
+					[]byte(file_path),
+					data,
+				}, []byte{})
+			}
 		}
 	}
+}
+
+// create or update a file. if file exists, extend file size and overwrite data to the certain offset
+func write_file_chunk(path string, offset int64, data []byte) error {
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	// extend file size if necessary
+	file_size := stat.Size()
+	min_required_size := offset + int64(len(data))
+	if min_required_size > file_size {
+		// file is not big enough
+		if err := file.Truncate(min_required_size); err != nil {
+			return err
+		}
+	}
+
+	// write data
+	if _, err := file.WriteAt(data, offset); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// read a file chunk
+func read_file_chunk(path string, offset int64, max_length int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	buf := make([]byte, max_length)
+	n, err := file.ReadAt(buf, offset)
+	return buf[:n], err
 }

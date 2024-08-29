@@ -14,3 +14,10 @@ type AgentNotify struct {
 	NeedStdout bool   `msg:"need_stdout"`
 	NeedStderr bool   `msg:"need_stderr"`
 }
+
+type FileInfo struct {
+	Path  string `msg:"path"`
+	Size  int64  `msg:"size"`
+	Mode  uint32 `msg:"mode"`
+	Mtime int64  `msg:"mtime"`
+}
