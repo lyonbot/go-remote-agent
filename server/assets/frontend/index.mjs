@@ -15,7 +15,7 @@ async function main() {
   search.set('agent', agent_name)
   history.replaceState({}, "", `?${search}`)
 
-  const url = `/api/client/${agent_name}/pty/`;
+  const url = `./api/client/${agent_name}/pty/`;
   const ws = new WebSocket(url);
 
   ws.onopen = () => {
