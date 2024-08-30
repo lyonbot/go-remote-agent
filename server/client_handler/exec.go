@@ -31,11 +31,15 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 	// make a tunnel
 
 	wg := sync.WaitGroup{}
-	tunnel, agent, _, C_notify_agent, C_to_agent, C_to_server, err := agent_handler.MakeAgentTunnel(r)
+
+	agent_name := r.PathValue("agent_name") // required
+	agent_id := r.FormValue("agent_id")     // optional
+	tunnel, _, _, notifyAgent, C_to_agent, C_to_server, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer tunnel.Delete()
 
 	{ // handle stdin
 		C_stdin := make(chan []byte, 5)
@@ -65,16 +69,16 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 
 	// send msg to agent
 
-	msg := biz.AgentNotify{
+	if err := notifyAgent(biz.AgentNotify{
 		Type:       "shell",
-		Id:         tunnel.Token,
 		Cmd:        cmd,
 		HasStdin:   stdin,
 		NeedStdout: stdout || full,
 		NeedStderr: stderr || full,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	msg_data, _ := msg.MarshalMsg(nil)
-	C_notify_agent <- msg_data
 
 	// make a chunked response
 
@@ -105,7 +109,7 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 			switch data[0] {
 			case 0x00:
 				exit_code := int32(binary.LittleEndian.Uint32(data[1:]))
-				log.Printf("%s exit code: %d", agent.Name, exit_code)
+				log.Printf("%s exit code: %d", agent_name, exit_code)
 
 			case 0x01:
 				if !full && stdout {
@@ -118,7 +122,7 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 				}
 
 			case 0x03:
-				log.Println("client:", agent.Name, "debug:", string(data[1:]))
+				log.Println("client:", agent_id, "debug:", string(data[1:]))
 			}
 		}
 	}()

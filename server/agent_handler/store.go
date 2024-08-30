@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"net/http"
+	"remote-agent/biz"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -33,6 +33,9 @@ type AgentInstance struct {
 	NotifyChannel chan<- []byte `json:"-"`
 }
 
+// a AgentTunnel is a bidirectional channel between agent and server
+//
+// use MakeAgentTunnel to make one
 type AgentTunnel struct {
 	Token string
 	Agent string
@@ -43,13 +46,13 @@ type AgentTunnel struct {
 
 var AgentTunnels = sync.Map{} // map[string]*AgentTunnel
 
-// make a empty client tunnel. you shall fill the content
+// make a empty agent tunnel. then you can notify agent via notifyAgent
 //
 // Note: agent_instance is nil if agent_id is empty
-func MakeAgentTunnel(r *http.Request) (tunnel *AgentTunnel, agent *Agent, agent_instance *AgentInstance, C_notify_agent chan<- []byte, C_to_agent chan<- []byte, C_to_server <-chan []byte, err error) {
-	agent_id := r.FormValue("agent_id")     // optional
-	agent_name := r.PathValue("agent_name") // required
-
+//
+// Note: remember to `defer tunnel.Delete()`
+func MakeAgentTunnel(agent_name, agent_id string) (tunnel *AgentTunnel, agent *Agent, agent_instance *AgentInstance, notifyAgent func(notify biz.AgentNotify) error, C_to_agent chan<- []byte, C_to_server <-chan []byte, err error) {
+	var C_notify_agent chan<- []byte
 	if agent_raw, ok := Agents.Load(agent_name); ok {
 		agent = agent_raw.(*Agent)
 		if agent_id == "" {
@@ -65,6 +68,16 @@ func MakeAgentTunnel(r *http.Request) (tunnel *AgentTunnel, agent *Agent, agent_
 	if C_notify_agent == nil {
 		err = errors.New("agent not found")
 		return
+	}
+
+	notifyAgent = func(notify biz.AgentNotify) error {
+		notify.Id = tunnel.Token
+		if msg_data, err := notify.MarshalMsg(nil); err != nil {
+			return err
+		} else {
+			C_notify_agent <- msg_data
+		}
+		return nil
 	}
 
 	to_agent := make(chan []byte, 5)
@@ -83,4 +96,8 @@ func MakeAgentTunnel(r *http.Request) (tunnel *AgentTunnel, agent *Agent, agent_
 	AgentTunnels.Store(token, tunnel)
 
 	return
+}
+
+func (tunnel *AgentTunnel) Delete() {
+	AgentTunnels.Delete(tunnel.Token)
 }

@@ -28,19 +28,22 @@ func HandleClientPty(w http.ResponseWriter, r *http.Request) {
 	C_to_client := ch.Write
 
 	// make a tunnel
-	tunnel, _, _, C_notify_agent, C_to_agent, C_from_agent, err := agent_handler.MakeAgentTunnel(r)
+	agent_name := r.PathValue("agent_name") // required
+	agent_id := r.FormValue("agent_id")     // optional
+	tunnel, _, _, notifyAgent, C_to_agent, C_from_agent, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer tunnel.Delete()
 
 	// notify agent
-	msg := biz.AgentNotify{
+	if err := notifyAgent(biz.AgentNotify{
 		Type: "pty",
-		Id:   tunnel.Token,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	msg_data, _ := msg.MarshalMsg(nil)
-	C_notify_agent <- msg_data
 
 	// proxy agent's data
 	wg.Add(1)
