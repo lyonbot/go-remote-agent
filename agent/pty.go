@@ -25,7 +25,11 @@ func run_pty(task *biz.AgentNotify) {
 
 	wg := sync.WaitGroup{}
 	ws := utils.WSConnToChannels(c, &wg)
-	defer close(ws.Write)
+	defer func() {
+		utils.TryClose(ws.Write)
+		ws.Write = nil // for unclosed pty
+		wg.Wait()
+	}()
 
 	write_debug_message := func(msg string) {
 		ws.Write <- utils.PrependBytes([]byte{0x03}, []byte(msg))
@@ -67,7 +71,7 @@ func run_pty(task *biz.AgentNotify) {
 						defer func() {
 							pty.Close()
 							pty = nil
-							ws.Write <- []byte{0x02} // pty closed
+							utils.TryWrite(ws.Write, []byte{0x02}) // pty closed
 						}()
 
 						for {

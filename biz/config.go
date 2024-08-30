@@ -13,8 +13,9 @@ type AgentConfig struct {
 	AsAgent bool   `yaml:"client"` // true for agent
 
 	// for server
-	Addr string // listen address, defaults to "0.0.0.0"
-	Port int32  // listen port, defaults to 8080
+	Addr   string // listen address, defaults to "0.0.0.0"
+	Port   int32  // listen port, defaults to 8080
+	APIKey string `yaml:"api_key"` // API key for client API. If set, must provided via `X-API-Key` header or `Authorization: Bearer <api_key>` header
 
 	// for agent
 	BaseUrl  string `yaml:"base_url"` // base url, including protocol and port, without `/api`
@@ -29,6 +30,7 @@ func init() {
 	name := flag.String("n", "", "Agent name")
 	baseUrl := flag.String("b", "", "Base URL (only for agent)")
 	insecure := flag.Bool("i", false, "Insecure (only for agent)")
+	api_key := flag.String("ak", "", "API key (only for server)")
 	flag.Parse()
 
 	if data, err := os.ReadFile(*configPath); err == nil {
@@ -44,6 +46,9 @@ func init() {
 	}
 	if *name != "" {
 		Config.Name = *name
+	}
+	if *api_key != "" {
+		Config.APIKey = *api_key
 	}
 
 	// defaults

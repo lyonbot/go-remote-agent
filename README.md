@@ -139,27 +139,21 @@ You can put query parameters:
 
 - `agent_id`: (optional) agent instance id, must match the agent name
 
-## How WebSocket works
+## Client API Key
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Server
-    participant Agent
+To ensure client API not be abused, you can set an `api_key` in the config file, or via `-ak your_key` command line.
 
-    Client->>Server: POST /api/client/:agent_name/exec/
-    Server->>Agent: Push new <token> via /api/agent/:agent_name
+In client API requests, you can pass API key in one of these ways:
 
-    Agent->>Server: WebSocket connect /api/agent/:agent_name/:token
+- Query parameter: `api_key`
+- POST field: `api_key`
+- Header: `X-API-Key`
+- Header: `Authorization: Bearer <api_key>`
 
-    Server->>Client: HTTP 200 (status code)
-    Agent->>Agent: spawn shell
+## How Agent communicate with Server
 
-    loop shell
-      Server->Agent: stdin / stdout / stderr
-      Server->>Client: stdout (& stderr)
-    end
+When client request to run a command, the server will push a `AgentNotify` message with a `token`, to the agent.
+(Pushed via `/api/agent/:agent_name`)
 
-    Agent->Agent: shell exit
-    Server->>Client: End
-```
+The agent will then connect to the server via WebSocket, with the `token`, then execute the command.
+(WebSocket connection via `/api/agent/:agent_name/:token`)

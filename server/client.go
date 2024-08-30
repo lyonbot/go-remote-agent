@@ -12,6 +12,7 @@ import (
 	"remote-agent/biz"
 	"remote-agent/utils"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -25,6 +26,41 @@ type ClientTunnel struct {
 }
 
 var ClientTunnels = sync.Map{} // map[string]*ClientTunnel
+
+func is_request_api_key_good(r *http.Request) bool {
+	correct_key := biz.Config.APIKey
+	if correct_key == "" {
+		return true
+	}
+
+	api_key_2 := r.FormValue("api_key")
+	if api_key_2 != "" {
+		return api_key_2 == correct_key
+	}
+
+	api_key := r.Header.Get("X-API-Key")
+	if api_key != "" {
+		return api_key == correct_key
+	}
+
+	auth := r.Header.Get("Authorization")
+	if auth != "" {
+		if strings.HasPrefix(auth, "Bearer ") {
+			auth = auth[7:]
+		}
+		return auth == correct_key
+	}
+
+	return false
+}
+func block_if_request_api_key_bad(w http.ResponseWriter, r *http.Request) (blocked bool) {
+	if !is_request_api_key_good(r) {
+		w.Header().Add("WWW-Authenticate", `Bearer realm="go-remote-agent"`)
+		http.Error(w, "API key is invalid", http.StatusUnauthorized)
+		return true
+	}
+	return false
+}
 
 // make a empty client tunnel. you shall fill the content
 //
@@ -68,27 +104,6 @@ func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, agen
 	return
 }
 
-func handleClientListAll(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	write_agent_instance_list(w, &all_agent_instances)
-}
-
-func handleClientListAgent(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	name := r.PathValue("agent_name")
-	if raw, ok := agents.Load(name); ok {
-		agent := raw.(*Agent)
-		write_agent_instance_list(w, &agent.Instances)
-	} else {
-		w.Write([]byte("[]"))
-		return
-	}
-}
-
 func write_agent_instance_list(w http.ResponseWriter, instances *sync.Map) {
 	w.Write([]byte("["))
 	is_first := true
@@ -111,7 +126,40 @@ func write_agent_instance_list(w http.ResponseWriter, instances *sync.Map) {
 	w.Write([]byte("]"))
 }
 
+func handleClientListAll(w http.ResponseWriter, r *http.Request) {
+	if block_if_request_api_key_bad(w, r) {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	write_agent_instance_list(w, &all_agent_instances)
+}
+
+func handleClientListAgent(w http.ResponseWriter, r *http.Request) {
+	if block_if_request_api_key_bad(w, r) {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	name := r.PathValue("agent_name")
+	if raw, ok := agents.Load(name); ok {
+		agent := raw.(*Agent)
+		write_agent_instance_list(w, &agent.Instances)
+	} else {
+		w.Write([]byte("[]"))
+		return
+	}
+}
+
 func handleClientExec(w http.ResponseWriter, r *http.Request) {
+	if block_if_request_api_key_bad(w, r) {
+		return
+	}
+
 	// parse request
 	cmd := r.FormValue("cmd")
 	stdout := utils.Defaults(r.FormValue("stdout"), "1") == "1"
@@ -223,6 +271,10 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleClientPty(w http.ResponseWriter, r *http.Request) {
+	if block_if_request_api_key_bad(w, r) {
+		return
+	}
+
 	// websocket to client
 	c, err := ws.Upgrade(w, r, nil)
 	if err != nil {
