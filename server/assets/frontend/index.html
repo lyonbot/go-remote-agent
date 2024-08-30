@@ -22,7 +22,7 @@
 
             <p>
               Agents
-              <button x-on:click="reload_agent_instances">Reload</button>
+              <button type="button" x-on:click="reload_agent_instances">Reload</button>
             </p>
             <select x-model="agent_id" size="12" style="width: 100%">
               <template x-for="instance in agent_instances" :key="instance.id">

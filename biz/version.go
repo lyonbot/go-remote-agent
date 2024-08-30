@@ -32,8 +32,18 @@ var UserAgent = fmt.Sprintf("go-remote-agent/%s (%s; %s)", Version, runtime.GOOS
 
 // check remote user-agent. if it can be upgraded, return true
 func IsUserAgentCanBeUpgraded(userAgent string) bool {
+	if userAgent == "" {
+		return false
+	}
+
 	// check platform (arch+os), extract parenthesis part
-	platform := userAgent[strings.Index(userAgent, "(")+1 : strings.Index(userAgent, ")")]
+	parenthesis_from := strings.Index(userAgent, "(")
+	parenthesis_to := strings.Index(userAgent, ")")
+	if parenthesis_from == -1 || parenthesis_to == -1 || parenthesis_from >= parenthesis_to {
+		return false
+	}
+
+	platform := userAgent[parenthesis_from+1 : parenthesis_to]
 	if platform != fmt.Sprintf("(%s; %s)", runtime.GOOS, runtime.GOARCH) {
 		return false
 	}
