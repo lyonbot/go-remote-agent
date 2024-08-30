@@ -85,6 +85,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 			for data := range C_stdin {
 				C_to_agent <- utils.PrependBytes([]byte{0x00}, data)
 			}
+			C_to_agent <- []byte{0x01}
 		}()
 
 		if file, headers, err := r.FormFile("stdin"); err == nil && headers != nil {
@@ -93,7 +94,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 		} else if data := r.FormValue("stdin"); data != "" {
 			stdin = true
 			C_stdin <- []byte(data)
-			close(C_stdin)
+			go close(C_stdin)
 		} else {
 			close(C_stdin)
 		}
