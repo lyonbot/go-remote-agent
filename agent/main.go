@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -13,6 +14,8 @@ import (
 
 var task_stream = make(chan *biz.AgentNotify, 5)
 
+var ctx, cancel_agent_task_stream = context.WithCancel(context.Background())
+
 func listen() {
 	url := biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name
 	run := func() error {
@@ -21,6 +24,7 @@ func listen() {
 			return err
 		}
 		req.Header.Set("User-Agent", biz.UserAgent)
+		req = req.WithContext(ctx)
 
 		client := http.Client{}
 		resp, err := client.Do(req)
@@ -54,7 +58,12 @@ func listen() {
 	}
 
 	for {
-		retry.Do(run, retry.MaxDelay(time.Second*60))
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			retry.Do(run, retry.MaxDelay(time.Second*60))
+		}
 	}
 }
 
@@ -66,6 +75,8 @@ func RunAgent() {
 			go run_shell(msg)
 		case "pty":
 			go run_pty(msg)
+		case "upgrade":
+			go run_upgrade(msg)
 		}
 	}
 }

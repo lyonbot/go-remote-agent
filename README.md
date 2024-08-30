@@ -61,7 +61,7 @@ A->S
 - `0x02 <data>` - stderr
 - `0x03 <message_str>` - debug message
 
-#### pty session
+#### pty + file transfer session
 
 In pty session, the server will act as transparent proxy between client and agent. Hence the "S" below can be considered as "client" too.
 
@@ -84,6 +84,19 @@ A->S:
 - `0x04 <uint64 offset> <file_path>` - file chunk written / file truncated
 - `0x05 <msgpack FileInfo>` - queried file info, see protocol.go
 - `0x06 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
+
+#### version upgrade session
+
+In version upgrade session, the server will send the binary of agent executable, and agent will try to upgrade itself.
+
+Note: in each step, agent may send `0x99 <error_message>` to server, and server will terminate the connection.
+
+1. S->A: `0x00` -- check whether upgradable. sometimes agent cannot rename itself.
+2. A->S: `0x00 <executable_path>` -- continue
+3. S->A: `0x01 [int64 total_size]` -- send agent executable info
+4. (Repeat) S->A: `0x02 [int64 offset] [data]` & A->S `0x00 [int64 new_offset]` -- send agent executable chunk
+5. A->S: `0x01` -- executable renamed
+6. A->S: `0x02` -- new executable started, we're running now
 
 ### GET /api/client/
 

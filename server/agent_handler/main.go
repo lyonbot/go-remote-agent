@@ -1,4 +1,4 @@
-package server
+package agent_handler
 
 import (
 	"encoding/binary"
@@ -8,33 +8,20 @@ import (
 	"remote-agent/biz"
 	"remote-agent/utils"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
-var agents = sync.Map{}
-
-type Agent struct {
-	Name      string
-	Channel   chan []byte  // write to arbitrary agent
-	Count     atomic.Int64 // count of agent instances
-	Instances sync.Map     // map[instance_id]*AgentInstance -- storing agent info and notify channel
+var ws = websocket.Upgrader{
+	EnableCompression: true,
+	CheckOrigin: func(r *http.Request) bool {
+		// accept all origin -- be good with reverse proxies
+		return true
+	},
 }
 
-var all_agent_instances = sync.Map{}
-var agent_instance_id_counter = atomic.Uint64{}
-
-type AgentInstance struct {
-	Id            uint64        `json:"id"`
-	Name          string        `json:"name"`
-	UserAgent     string        `json:"user_agent"`
-	IsUpgradable  bool          `json:"is_upgradable"`
-	JoinAt        time.Time     `json:"join_at"`
-	RemoteAddr    string        `json:"remote_addr"`
-	NotifyChannel chan<- []byte `json:"-"`
-}
-
-func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
+func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	agent_name := r.PathValue("agent_name")
 	if agent_name == "" {
 		http.Error(w, "agent_name is required", http.StatusBadRequest)
@@ -49,7 +36,7 @@ func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 
 	// setup in agents
 	agent := new(Agent)
-	if agent_raw, ok := agents.LoadOrStore(agent_name, agent); ok {
+	if agent_raw, ok := Agents.LoadOrStore(agent_name, agent); ok {
 		log.Printf("reuse agent: %s", agent_name)
 		agent = agent_raw.(*Agent)
 	} else {
@@ -63,7 +50,7 @@ func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 		remain := agent.Count.Add(-1)
 		log.Printf("agent leave: %s, remain: %d", agent_name, remain)
 		if remain == 0 {
-			agents.Delete(agent_name)
+			Agents.Delete(agent_name)
 			log.Printf("agent deleted: %s", agent_name)
 		}
 	}()
@@ -91,8 +78,8 @@ func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 		NotifyChannel: instance_chan,
 	}
 
-	all_agent_instances.Store(instance_id, &instance)
-	defer all_agent_instances.Delete(instance_id)
+	AllAgentInstances.Store(instance_id, &instance)
+	defer AllAgentInstances.Delete(instance_id)
 	agent.Instances.Store(instance_id, &instance)
 	defer agent.Instances.Delete(instance_id)
 	defer close(instance_chan)
@@ -119,18 +106,18 @@ loop:
 	}
 }
 
-func handleAgentTaskWSRequest(w http.ResponseWriter, r *http.Request) {
+func HandleAgentTunnelRequest(w http.ResponseWriter, r *http.Request) {
 	var agent *Agent
-	if agent_raw, ok := agents.Load(r.PathValue("agent_name")); ok {
+	if agent_raw, ok := Agents.Load(r.PathValue("agent_name")); ok {
 		agent = agent_raw.(*Agent)
 	} else {
 		http.Error(w, "agent not found", http.StatusNotFound)
 		return
 	}
 
-	var client *ClientTunnel
-	if client_raw, ok := ClientTunnels.LoadAndDelete(r.PathValue("token")); ok {
-		client = client_raw.(*ClientTunnel)
+	var client *AgentTunnel
+	if client_raw, ok := AgentTunnels.LoadAndDelete(r.PathValue("token")); ok {
+		client = client_raw.(*AgentTunnel)
 	} else {
 		http.Error(w, "client not found", http.StatusNotFound)
 		return

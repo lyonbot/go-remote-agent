@@ -5,7 +5,7 @@ package biz
 //go:generate msgp
 
 type AgentNotify struct {
-	Type string `msg:"type"` // ping, shell, pty
+	Type string `msg:"type"` // ping, shell, pty, upgrade
 	Id   string `msg:"id"`
 
 	// shell
