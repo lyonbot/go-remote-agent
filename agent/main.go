@@ -20,6 +20,7 @@ func listen() {
 		if err != nil {
 			return err
 		}
+		req.Header.Set("User-Agent", biz.UserAgent)
 
 		client := http.Client{}
 		resp, err := client.Do(req)

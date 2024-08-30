@@ -15,9 +15,23 @@ import (
 var agents = sync.Map{}
 
 type Agent struct {
-	Name  string
-	Chan  chan []byte
-	Count atomic.Int64
+	Name      string
+	Channel   chan []byte  // write to arbitrary agent
+	Count     atomic.Int64 // count of agent instances
+	Instances sync.Map     // map[instance_id]*AgentInstance -- storing agent info and notify channel
+}
+
+var all_agent_instances = sync.Map{}
+var agent_instance_id_counter = atomic.Uint64{}
+
+type AgentInstance struct {
+	Id            uint64
+	Name          string // may duplicated
+	UserAgent     string
+	IsUpgradable  bool
+	JoinAt        time.Time
+	RemoteAddr    string
+	NotifyChannel chan<- []byte
 }
 
 func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +55,7 @@ func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("new agent: %s", agent_name)
 		agent.Name = agent_name
-		agent.Chan = make(chan []byte, 5)
+		agent.Channel = make(chan []byte, 5)
 	}
 
 	agent.Count.Add(1)
@@ -62,17 +76,42 @@ func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 		w.(http.Flusher).Flush()
 	}
 
+	// add agent instance
+
+	instance_id := agent_instance_id_counter.Add(1)
+	user_agent := r.Header.Get("User-Agent")
+	instance_chan := make(chan []byte, 5)
+	instance := AgentInstance{
+		Id:            instance_id,
+		Name:          agent_name,
+		UserAgent:     user_agent,
+		IsUpgradable:  biz.IsUserAgentCanBeUpgraded(user_agent),
+		JoinAt:        time.Now(),
+		RemoteAddr:    r.RemoteAddr,
+		NotifyChannel: instance_chan,
+	}
+
+	all_agent_instances.Store(instance_id, &instance)
+	defer all_agent_instances.Delete(instance_id)
+	agent.Instances.Store(instance_id, &instance)
+	defer agent.Instances.Delete(instance_id)
+	defer close(instance_chan)
+
+	// keep alive interval
+
 	alive_interval := time.NewTicker(time.Second * 30)
 	defer alive_interval.Stop()
-
 	ping := biz.AgentNotify{Type: "ping"}
 	ping_data, _ := ping.MarshalMsg(nil)
 
+loop:
 	for {
 		select {
 		case <-r.Context().Done():
-			return
-		case msg := <-agent.Chan:
+			break loop
+		case msg := <-agent.Channel:
+			write(msg)
+		case msg := <-instance_chan:
 			write(msg)
 		case <-alive_interval.C:
 			write(ping_data)

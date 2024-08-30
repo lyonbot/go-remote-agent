@@ -27,6 +27,8 @@ func RunServer() {
 	http.HandleFunc("/api/agent/{agent_name}", handleAgentTaskStreamRequest)
 	http.HandleFunc("/api/agent/{agent_name}/{token}", handleAgentTaskWSRequest)
 
+	http.HandleFunc("/api/client/", handleClientListAll)
+	http.HandleFunc("/api/client/{agent_name}/", handleClientListAgent)
 	http.HandleFunc("/api/client/{agent_name}/exec/", handleClientExec)
 	http.HandleFunc("/api/client/{agent_name}/pty/", handleClientPty)
 

@@ -84,6 +84,18 @@ A->S:
 - `0x04 <msgpack FileInfo>` - queried file info, see protocol.go
 - `0x05 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
 
+### GET /api/client/
+
+For client.
+
+List all agent instances.
+
+### GET /api/client/:agent_name/
+
+For client.
+
+List all agent instances of given name.
+
 ### POST /api/client/:agent_name/exec/
 
 For client.

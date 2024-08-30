@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -50,6 +51,50 @@ func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, C_to
 	ClientTunnels.Store(token, tunnel)
 
 	return
+}
+
+func handleClientListAll(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	write_agent_instance_list(w, &all_agent_instances)
+}
+
+func handleClientListAgent(w http.ResponseWriter, r *http.Request) {
+	var agent *Agent
+	if raw, ok := agents.Load(r.PathValue("agent_name")); ok {
+		agent = raw.(*Agent)
+	} else {
+		http.Error(w, "invalid agent name", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	write_agent_instance_list(w, &agent.Instances)
+}
+
+func write_agent_instance_list(w http.ResponseWriter, instances *sync.Map) {
+	w.Write([]byte("["))
+	is_first := true
+
+	instances.Range(func(key, value interface{}) bool {
+		instance := value.(*AgentInstance)
+		b, err := json.Marshal(instance)
+		if err != nil {
+			return true
+		}
+
+		if !is_first {
+			w.Write([]byte(","))
+		}
+		is_first = false
+
+		w.Write(b)
+		return true
+	})
+	w.Write([]byte("]"))
 }
 
 func handleClientExec(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +156,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 		NeedStderr: stderr || full,
 	}
 	msg_data, _ := msg.MarshalMsg(nil)
-	agent.Chan <- msg_data
+	agent.Channel <- msg_data
 
 	// make a chunked response
 
@@ -190,7 +235,7 @@ func handleClientPty(w http.ResponseWriter, r *http.Request) {
 		Id:   tunnel.Token,
 	}
 	msg_data, _ := msg.MarshalMsg(nil)
-	agent.Chan <- msg_data
+	agent.Channel <- msg_data
 
 	// proxy agent's data
 	wg.Add(1)
