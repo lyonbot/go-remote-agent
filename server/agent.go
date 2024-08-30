@@ -25,13 +25,13 @@ var all_agent_instances = sync.Map{}
 var agent_instance_id_counter = atomic.Uint64{}
 
 type AgentInstance struct {
-	Id            uint64
-	Name          string // may duplicated
-	UserAgent     string
-	IsUpgradable  bool
-	JoinAt        time.Time
-	RemoteAddr    string
-	NotifyChannel chan<- []byte
+	Id            uint64        `json:"id"`
+	Name          string        `json:"name"`
+	UserAgent     string        `json:"user_agent"`
+	IsUpgradable  bool          `json:"is_upgradable"`
+	JoinAt        time.Time     `json:"join_at"`
+	RemoteAddr    string        `json:"remote_addr"`
+	NotifyChannel chan<- []byte `json:"-"`
 }
 
 func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func handleAgentTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 
 	// setup in agents
 	agent := new(Agent)
-	if agent_raw, is_new := agents.LoadOrStore(agent_name, agent); is_new {
+	if agent_raw, ok := agents.LoadOrStore(agent_name, agent); ok {
 		log.Printf("reuse agent: %s", agent_name)
 		agent = agent_raw.(*Agent)
 	} else {

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"remote-agent/biz"
 	"remote-agent/utils"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -26,11 +27,25 @@ type ClientTunnel struct {
 var ClientTunnels = sync.Map{} // map[string]*ClientTunnel
 
 // make a empty client tunnel. you shall fill the content
-func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, C_to_agent chan<- []byte, C_to_server <-chan []byte, err error) {
-	agent_name := r.PathValue("agent_name")
+//
+// Note: agent_instance is nil if agent_id is empty
+func makeClientTunnel(r *http.Request) (tunnel *ClientTunnel, agent *Agent, agent_instance *AgentInstance, C_notify_agent chan<- []byte, C_to_agent chan<- []byte, C_to_server <-chan []byte, err error) {
+	agent_id := r.FormValue("agent_id")     // optional
+	agent_name := r.PathValue("agent_name") // required
+
 	if agent_raw, ok := agents.Load(agent_name); ok {
 		agent = agent_raw.(*Agent)
-	} else {
+		if agent_id == "" {
+			C_notify_agent = agent.Channel
+		} else if id_num, err := strconv.ParseUint(agent_id, 10, 64); err == nil {
+			if instance, ok := agent.Instances.Load(id_num); ok {
+				agent_instance = instance.(*AgentInstance)
+				C_notify_agent = agent_instance.NotifyChannel
+			}
+		}
+	}
+
+	if C_notify_agent == nil {
 		err = errors.New("agent not found")
 		return
 	}
@@ -61,18 +76,17 @@ func handleClientListAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleClientListAgent(w http.ResponseWriter, r *http.Request) {
-	var agent *Agent
-	if raw, ok := agents.Load(r.PathValue("agent_name")); ok {
-		agent = raw.(*Agent)
-	} else {
-		http.Error(w, "invalid agent name", http.StatusBadRequest)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	write_agent_instance_list(w, &agent.Instances)
+	name := r.PathValue("agent_name")
+	if raw, ok := agents.Load(name); ok {
+		agent := raw.(*Agent)
+		write_agent_instance_list(w, &agent.Instances)
+	} else {
+		w.Write([]byte("[]"))
+		return
+	}
 }
 
 func write_agent_instance_list(w http.ResponseWriter, instances *sync.Map) {
@@ -113,7 +127,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 	// make a tunnel
 
 	wg := sync.WaitGroup{}
-	tunnel, agent, C_to_agent, C_to_server, err := makeClientTunnel(r)
+	tunnel, agent, _, C_notify_agent, C_to_agent, C_to_server, err := makeClientTunnel(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -156,7 +170,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 		NeedStderr: stderr || full,
 	}
 	msg_data, _ := msg.MarshalMsg(nil)
-	agent.Channel <- msg_data
+	C_notify_agent <- msg_data
 
 	// make a chunked response
 
@@ -187,7 +201,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 			switch data[0] {
 			case 0x00:
 				exit_code := int32(binary.LittleEndian.Uint32(data[1:]))
-				log.Printf("client: %s exit code: %d", agent.Name, exit_code)
+				log.Printf("exit code: %d", agent.Name, exit_code)
 
 			case 0x01:
 				if !full && stdout {
@@ -223,7 +237,7 @@ func handleClientPty(w http.ResponseWriter, r *http.Request) {
 	C_to_client := ch.Write
 
 	// make a tunnel
-	tunnel, agent, C_to_agent, C_from_agent, err := makeClientTunnel(r)
+	tunnel, _, _, C_notify_agent, C_to_agent, C_from_agent, err := makeClientTunnel(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -235,7 +249,7 @@ func handleClientPty(w http.ResponseWriter, r *http.Request) {
 		Id:   tunnel.Token,
 	}
 	msg_data, _ := msg.MarshalMsg(nil)
-	agent.Channel <- msg_data
+	C_notify_agent <- msg_data
 
 	// proxy agent's data
 	wg.Add(1)

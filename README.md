@@ -1,9 +1,8 @@
 # Remote Agent
 
-
 This is a program that can act as a server or a agent.
 
-When act as a `Server`. It starts a HTTP server that accepts connections from agents and client API requests. 
+When act as a `Server`. It starts a HTTP server that accepts connections from agents and client API requests.
 You may treat it as a broker.
 
 When act as an `Agent`, it connects to server, wait for shell commands, run, upload results. It may run on a remote machine, and be controlled by a client.
@@ -13,22 +12,22 @@ It auto-reconnects to server. Agent doesn't need a public IP.
 
 ```sh
 export GOARCH=amd64 GOOS=linux
-go build -o agent_linux_amd64 main.go
-go build -ldflags "-s -w" -tags release -o agent_linux_amd64 main.go
+go build -o agent_linux_amd64 -v .
+go build -ldflags "-s -w" -tags release -o agent_linux_amd64 -v .
 ```
 
 Then run it:
 
 ```sh
 # run as a server
-./agent_linux_amd64 
+./agent_linux_amd64
 
 # run as an agent
 ./agent_linux_amd64 -a -n bot1 -b http://127.0.0.1:8080
 
 # send command to agent
 curl http://127.0.0.1:8080/api/client/bot1/exec/ -F "cmd=ffmpeg -codecs" -F stderr=1
-curl http://127.0.0.1:8080/api/client/bot1/exec/ -F "cmd=wc -c" -F stdin=@file.bin 
+curl http://127.0.0.1:8080/api/client/bot1/exec/ -F "cmd=wc -c" -F stdin=@file.bin
 ```
 
 ## API
@@ -88,13 +87,26 @@ A->S:
 
 For client.
 
-List all agent instances.
+List all agent instances. Returns a JSON array like :
+
+```json
+[
+  {
+    "id": 1,
+    "name": "bot1",
+    "user_agent": "go-remote-agent/a7c3f99532177ddd8157aa7b640c2622b15af9c2@1725035270 (darwin; amd64)",
+    "is_upgradable": false,
+    "join_at": "2024-08-31T00:42:44.694602+08:00",
+    "remote_addr": "[::1]:64922"
+  }
+]
+```
 
 ### GET /api/client/:agent_name/
 
 For client.
 
-List all agent instances of given name.
+List all agent instances of given name. Same response as above.
 
 ### POST /api/client/:agent_name/exec/
 
@@ -102,6 +114,7 @@ For client.
 
 Run a command on the agent. The payload is a FormData:
 
+- `agent_id`: (optional) agent instance id, must match the agent name
 - `cmd`: string, command to run. will be passed as `sh -c <cmd>`
 - `stdin`: (optional) file
 - `stdout`: (optional) set to `0` to disable stdout (default enabled)
@@ -121,6 +134,10 @@ For client.
 Open a pty session. This is a WebSocket connection.
 
 The data protocol is same as above "pty session" section.
+
+You can put query parameters:
+
+- `agent_id`: (optional) agent instance id, must match the agent name
 
 ## How WebSocket works
 

@@ -25,7 +25,7 @@ var Version, VersionTime = func() (string, int64) {
 		}
 	}
 
-	return fmt.Sprintf("%s@%s", revision, rev_time), rev_time
+	return fmt.Sprintf("%s@%d", revision, rev_time), rev_time
 }()
 
 var UserAgent = fmt.Sprintf("go-remote-agent/%s (%s; %s)", Version, runtime.GOOS, runtime.GOARCH)
