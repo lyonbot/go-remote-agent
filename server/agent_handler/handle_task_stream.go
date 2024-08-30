@@ -6,20 +6,11 @@ import (
 	"log"
 	"net/http"
 	"remote-agent/biz"
-	"remote-agent/utils"
-	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
-var ws = websocket.Upgrader{
-	EnableCompression: true,
-	CheckOrigin: func(r *http.Request) bool {
-		// accept all origin -- be good with reverse proxies
-		return true
-	},
-}
+var agent_instance_id_counter = atomic.Uint64{}
 
 func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	agent_name := r.PathValue("agent_name")
@@ -50,7 +41,7 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 		remain := agent.Count.Add(-1)
 		log.Printf("agent leave: %s, remain: %d", agent_name, remain)
 		if remain == 0 {
-			Agents.Delete(agent_name)
+			agent.Delete()
 			log.Printf("agent deleted: %s", agent_name)
 		}
 	}()
@@ -104,74 +95,4 @@ loop:
 			write(ping_data)
 		}
 	}
-}
-
-func HandleAgentTunnelRequest(w http.ResponseWriter, r *http.Request) {
-	var agent *Agent
-	if agent_raw, ok := Agents.Load(r.PathValue("agent_name")); ok {
-		agent = agent_raw.(*Agent)
-	} else {
-		http.Error(w, "agent not found", http.StatusNotFound)
-		return
-	}
-
-	var client *AgentTunnel
-	if client_raw, ok := AgentTunnels.LoadAndDelete(r.PathValue("token")); ok {
-		client = client_raw.(*AgentTunnel)
-	} else {
-		http.Error(w, "client not found", http.StatusNotFound)
-		return
-	}
-
-	log.Printf("new ws connection: %s for %s", agent.Name, client.Token)
-
-	// go websocket
-
-	c, err := ws.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-
-	defer c.Close()
-	wg := sync.WaitGroup{}
-
-	ch := utils.WSConnToChannels(c, &wg)
-	C_closed_from_agent := make(chan struct{}, 1)
-
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		defer c.Close()
-		defer close(ch.Write)
-
-		for {
-			select {
-			case data, ok := <-client.ToAgent:
-				if !ok {
-					// no more data to agent, close connection
-					return
-				}
-				ch.Write <- data
-			case <-C_closed_from_agent:
-				// WARNING: this may cause client.ToAgent not closed?
-				return
-			}
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer close(client.ToServer)
-
-		for data := range ch.Read {
-			client.ToServer <- data
-		}
-
-		C_closed_from_agent <- struct{}{}
-		close(C_closed_from_agent)
-	}()
-
-	wg.Wait()
 }
