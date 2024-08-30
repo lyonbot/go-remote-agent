@@ -57,10 +57,6 @@ func handleWebAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if p, err := assets.StaticFs.ReadFile(fsPrefix + path); err == nil && len(p) > 0 {
-		if block_if_request_api_key_bad(w, r) {
-			return
-		}
-
 		// is a file
 		// log.Println("Requesting static file", path)
 		ext := filepath.Ext(path)

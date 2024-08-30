@@ -249,7 +249,7 @@ func handleClientExec(w http.ResponseWriter, r *http.Request) {
 			switch data[0] {
 			case 0x00:
 				exit_code := int32(binary.LittleEndian.Uint32(data[1:]))
-				log.Printf("exit code: %d", agent.Name, exit_code)
+				log.Printf("%s exit code: %d", agent.Name, exit_code)
 
 			case 0x01:
 				if !full && stdout {

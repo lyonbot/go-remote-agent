@@ -70,9 +70,10 @@ S->A:
 - `0x00 <data>` - pty data
 - `0x01 <cmd>` - start a pty session. cmd is usually `sh`. if has parameters, use `\x00` as separator
 - `0x02` - close pty
-- `0x03 <uint64 offset> <uint64 length> <file_path> <data>` - upload a file
-- `0x04 <file_path>` - read file info
-- `0x05 <uint64 offset> <uint64 length> <file_path>` - request to read a file chunk
+- `0x03` - (not defined)
+- `0x04 <uint64 offset> <uint64 length> <file_path> <data>` - write a file chunk / truncate a file to length of *offset* (if *data* is empty)
+- `0x05 <file_path>` - read file info
+- `0x06 <uint64 offset> <uint64 length> <file_path>` - request to read a file chunk
 
 A->S:
 
@@ -80,8 +81,9 @@ A->S:
 - `0x01` - pty opened
 - `0x02` - pty closed
 - `0x03 <message_str>` - debug message
-- `0x04 <msgpack FileInfo>` - queried file info, see protocol.go
-- `0x05 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
+- `0x04 <uint64 offset> <file_path>` - file chunk written / file truncated
+- `0x05 <msgpack FileInfo>` - queried file info, see protocol.go
+- `0x06 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
 
 ### GET /api/client/
 

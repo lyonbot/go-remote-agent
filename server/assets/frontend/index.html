@@ -1,25 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XTermTest</title>
+  </head>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XTermTest</title>
-</head>
+  <body>
+    <div>
+      <link href="./xterm.min.css" rel="stylesheet" />
+      <script src="./xterm.min.js"></script>
+      <script src="./msgpack.min.js"></script>
+      <script src="./alpine.min.js"></script>
+      <script src="./index.js"></script>
 
-<body>
-  <div id="terminal"></div>
+      <div x-data="the_app">
+        <!-- stage 1: input api key and select device -->
+        <template x-if="stage==1">
+          <form x-init="init" x-on:submit.prevent="if(agent_name)stage=2">
+            <p>APIKey: <input type="text" x-model="api_key" x-on:change="reload_agent_instances" /></p>
 
-  <div style="display: flex; margin-top: 2px; gap: 2px">
-    <button id="download_btn">Download</button>
-    <button id="upload_btn">Upload</button>
-    <input type="text" name="" id="file_path" placeholder="path" style="flex: 1">
+            <p>
+              Agents
+              <button x-on:click="reload_agent_instances">Reload</button>
+            </p>
+            <select x-model="agent_id" size="12" style="width: 100%">
+              <template x-for="instance in agent_instances" :key="instance.id">
+                <option
+                  x-text="`${instance.name} (${instance.id})`"
+                  x-bind:value="instance.id"
+                  x-bind:selected="instance.id==agent_id"
+                ></option>
+              </template>
+            </select>
 
-    <input type="file" id="upload_picker" style="display: none">
-  </div>
+            <p x-show="agent_name">
+              <button type="submit">
+                Connect to
+                <span x-text="agent_name"></span>
+              </button>
+            </p>
+          </fo>
+        </template>
 
-  <link href="./xterm.min.css" rel="stylesheet">
-  <script type="module" src="./index.mjs"></script>
-</body>
+        <!-- stage 2: terminal -->
+        <template x-if="stage==2">
+          <div
+            x-init="init_stage_2"
+            style="position: relative"
+            x-on:dragenter.capture="ev=>{fs_about_dropping_file=ev.dataTransfer.types.includes('Files')}"
+            x-on:dragover.capture="ev=>{if (fs_about_dropping_file) (ev.preventDefault(), ev.stopPropagation())}"
+            x-on:dragleave.capture="ev=>{if (!ev.currentTarget.contains(ev.relatedTarget))fs_about_dropping_file=false}"
+            x-on:drop.prevent="fs_upload_via_drop"
+          >
+            <template x-if="fs_about_dropping_file">
+              <div
+                style="
+                  position: absolute;
+                  inset: 0;
+                  background-color: rgba(0, 0, 0, 0.5);
+                  color: #fff;
+                  z-index: 10;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                <div>
+                  Drop file, send to
+                  <code x-text="fs_path"></code>
+                </div>
+              </div>
+            </template>
 
+            <div x-ref="terminal"></div>
+
+            <div style="display: flex; margin-top: 2px; gap: 4px; position: relative">
+              <button x-on:click="fs_download">Download</button>
+              <button x-on:click="fs_upload">Upload</button>
+              <input type="text" x-model="fs_path" placeholder="path" style="flex: 1" />
+
+              <input type="file" x-ref="upload_picker" style="display: none" />
+            </div>
+
+            <div
+              x-init="fs_init_progress_bar($el)"
+              style="width: 0; height: 1em; background-color: blue; transition: 0.1s"
+            ></div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </body>
 </html>

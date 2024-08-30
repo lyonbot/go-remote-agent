@@ -96,7 +96,7 @@ func run_pty(task *biz.AgentNotify) {
 				}
 			}
 
-		case 0x03: // upload file
+		case 0x04: // upload file chunk
 			offset := int64(binary.LittleEndian.Uint64(recv[1:]))
 			length := int64(binary.LittleEndian.Uint64(recv[9:]))
 			data_since := int64(len(recv)) - length
@@ -104,9 +104,15 @@ func run_pty(task *biz.AgentNotify) {
 			data := recv[data_since:]
 			if err := write_file_chunk(path, offset, data); err != nil {
 				write_debug_message(err.Error())
+				break
 			}
+			ws.Write <- bytes.Join([][]byte{
+				[]byte{0x04},
+				binary.LittleEndian.AppendUint64(nil, uint64(offset)),
+				[]byte(path),
+			}, []byte{})
 
-		case 0x04: // read file info
+		case 0x05: // read file info
 			path := string(recv[1:])
 			if info, err := os.Stat(path); err == nil {
 				msg := biz.FileInfo{
@@ -118,14 +124,14 @@ func run_pty(task *biz.AgentNotify) {
 				msg_bytes, err := msg.MarshalMsg(nil)
 				if err != nil {
 					write_debug_message(err.Error())
-				} else {
-					ws.Write <- utils.PrependBytes([]byte{0x04}, msg_bytes)
+					break
 				}
+				ws.Write <- utils.PrependBytes([]byte{0x05}, msg_bytes)
 			} else {
 				write_debug_message(err.Error())
 			}
 
-		case 0x05: // read file chunk
+		case 0x06: // read file chunk
 			offset := int64(binary.LittleEndian.Uint64(recv[1:]))
 			length := int64(binary.LittleEndian.Uint64(recv[9:]))
 			file_path := string(recv[17:])
@@ -133,27 +139,36 @@ func run_pty(task *biz.AgentNotify) {
 			data, err := read_file_chunk(file_path, offset, length)
 			if data == nil {
 				write_debug_message(err.Error())
-			} else {
-				actual_length := int64(len(data))
-				ws.Write <- bytes.Join([][]byte{
-					[]byte{0x05},
-					binary.LittleEndian.AppendUint64(nil, uint64(offset)),
-					binary.LittleEndian.AppendUint64(nil, uint64(actual_length)),
-					[]byte(file_path),
-					data,
-				}, []byte{})
+				break
 			}
+
+			actual_length := int64(len(data))
+			ws.Write <- bytes.Join([][]byte{
+				[]byte{0x06},
+				binary.LittleEndian.AppendUint64(nil, uint64(offset)),
+				binary.LittleEndian.AppendUint64(nil, uint64(actual_length)),
+				[]byte(file_path),
+				data,
+			}, []byte{})
 		}
 	}
 }
 
-// create or update a file. if file exists, extend file size and overwrite data to the certain offset
+// create or update a file.
+// if file exists, extend file size and overwrite data to the certain offset
+// if data length is 0, it means truncate the file to length of offset
 func write_file_chunk(path string, offset int64, data []byte) error {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	if len(data) == 0 {
+		// truncate file
+		err = file.Truncate(offset)
+		return err
+	}
 
 	stat, err := file.Stat()
 	if err != nil {
