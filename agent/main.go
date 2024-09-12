@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"remote-agent/agent/agent_pty"
 	"remote-agent/biz"
 	"time"
 
@@ -74,7 +75,7 @@ func RunAgent() {
 		case "shell":
 			go run_shell(msg)
 		case "pty":
-			go run_pty(msg)
+			go agent_pty.Run(msg)
 		case "upgrade":
 			go run_upgrade(msg)
 		}

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XTermTest</title>
+    <link href="./index.css" rel="stylesheet" />
   </head>
 
   <body>
@@ -18,7 +19,7 @@
       <div x-data="the_app">
         <!-- stage 1: input api key and select device -->
         <template x-if="stage==1">
-          <form x-init="init" x-on:submit.prevent="if(agent_name)stage=2">
+          <form id="initForm" x-init="init" x-on:submit.prevent="if(agent_name)stage=2">
             <p>APIKey: <input type="text" x-model="api_key" x-on:change="reload_agent_instances" /></p>
 
             <p>
@@ -64,14 +65,14 @@
                 </table>
               </details>
             </div>
-          </fo>
+          </form>
         </template>
 
         <!-- stage 2: terminal -->
         <template x-if="stage==2">
           <div
             x-init="init_stage_2"
-            style="position: relative"
+            id="ptyApp"
             x-on:dragenter.capture="ev=>{fs_about_dropping_file=ev.dataTransfer.types.includes('Files')}"
             x-on:dragover.capture="ev=>{if (fs_about_dropping_file) (ev.preventDefault(), ev.stopPropagation())}"
             x-on:dragleave.capture="ev=>{if (!ev.currentTarget.contains(ev.relatedTarget))fs_about_dropping_file=false}"
@@ -99,7 +100,7 @@
 
             <div x-ref="terminal"></div>
 
-            <div style="display: flex; margin-top: 2px; gap: 4px; position: relative">
+            <div id="ptyToolbar">
               <button x-on:click="fs_download">Download</button>
               <button x-on:click="fs_upload">Upload</button>
               <input type="text" x-model="fs_path" placeholder="path" style="flex: 1" />
@@ -108,8 +109,9 @@
             </div>
 
             <div
+              id="ptyToolbarProgress"
               x-init="fs_init_progress_bar($el)"
-              style="width: 0; height: 1em; background-color: blue; transition: 0.1s"
+              style="background-color: blue"
             ></div>
           </div>
         </template>

@@ -12,6 +12,7 @@ require (
 
 require (
 	github.com/philhofer/fwd v1.1.3-0.20240612014219-fbbf4953d986 // indirect
+	github.com/things-go/go-socks5 v0.0.5 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
