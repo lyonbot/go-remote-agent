@@ -36,7 +36,7 @@ Alpine.data('the_app', function () {
 
     pty_cmd: 'sh',
     pty_args: '', // lines as args
-    pty_env: '', // e.g. TERM=xterm-256color
+    pty_env: 'TERM=xterm-256color',
     pty_inherit_env: true,
 
     // stage 2

@@ -44,11 +44,24 @@
               </p>
               <details>
                 <summary>PTY</summary>
-                <ul>
-                  <li>Cmd: <input type="text" x-model="pty_cmd" /></li>
-                  <li>Args: <textarea type="text" x-model="pty_args"></textarea></li>
-                  <li>Env: <textarea type="text" x-model="pty_env" placeholder="FOO=bar"></textarea></li>
-                  <li>Inherit Env: <input type="checkbox" x-model="pty_inherit_env" /></li>
+                <table border="0">
+                  <tr>
+                    <td>Cmd:</td>
+                    <td><input type="text" x-model="pty_cmd" /></td>
+                  </tr>
+                  <tr>
+                    <td>Args:</td>
+                    <td><textarea type="text" x-model="pty_args"></textarea></td>
+                  </tr>
+                  <tr>
+                    <td>Env:</td>
+                    <td><textarea type="text" x-model="pty_env" placeholder="FOO=bar"></textarea></td>
+                  </tr>
+                  <tr>
+                    <td>Inherit Env:</td>
+                    <td><input type="checkbox" x-model="pty_inherit_env" /></td>
+                  </tr>
+                </table>
               </details>
             </div>
           </fo>
