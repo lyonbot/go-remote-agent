@@ -1,18 +1,15 @@
 package agent_pty
 
 import (
-	"bytes"
 	"encoding/binary"
 	"os"
 	"remote-agent/biz"
 	"remote-agent/utils"
 )
 
-func (s *ptySessionRecv) setupFileTransfer() {
-	ws := s.ws
-
+func (s *PtySession) SetupFileTransfer() {
 	// upload file chunk
-	s.handlers[0x04] = func(recv []byte) {
+	s.Handlers[0x04] = func(recv []byte) {
 		offset := int64(binary.LittleEndian.Uint64(recv[1:]))
 		length := int64(binary.LittleEndian.Uint64(recv[9:]))
 		data_since := int64(len(recv)) - length
@@ -22,15 +19,15 @@ func (s *ptySessionRecv) setupFileTransfer() {
 			s.WriteDebugMessage(err.Error())
 			return
 		}
-		ws.Write <- bytes.Join([][]byte{
-			[]byte{0x04},
+		s.Write(utils.JoinBytes2(
+			0x04,
 			binary.LittleEndian.AppendUint64(nil, uint64(offset)),
 			[]byte(path),
-		}, []byte{})
+		))
 	}
 
 	// read file info
-	s.handlers[0x05] = func(recv []byte) {
+	s.Handlers[0x05] = func(recv []byte) {
 		path := string(recv[1:])
 		info, err := os.Stat(path)
 		if err != nil {
@@ -49,11 +46,11 @@ func (s *ptySessionRecv) setupFileTransfer() {
 			s.WriteDebugMessage(err.Error())
 			return
 		}
-		ws.Write <- utils.PrependBytes([]byte{0x05}, msg_bytes)
+		s.Write(utils.PrependBytes([]byte{0x05}, msg_bytes))
 	}
 
 	// read file chunk
-	s.handlers[0x06] = func(recv []byte) {
+	s.Handlers[0x06] = func(recv []byte) {
 		offset := int64(binary.LittleEndian.Uint64(recv[1:]))
 		length := int64(binary.LittleEndian.Uint64(recv[9:]))
 		file_path := string(recv[17:])
@@ -65,13 +62,13 @@ func (s *ptySessionRecv) setupFileTransfer() {
 		}
 
 		actual_length := int64(len(data))
-		ws.Write <- bytes.Join([][]byte{
-			[]byte{0x06},
+		s.Write(utils.JoinBytes2(
+			0x06,
 			binary.LittleEndian.AppendUint64(nil, uint64(offset)),
 			binary.LittleEndian.AppendUint64(nil, uint64(actual_length)),
 			[]byte(file_path),
 			data,
-		}, []byte{})
+		))
 	}
 }
 

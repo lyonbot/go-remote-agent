@@ -13,3 +13,11 @@ func PrependBytes(prefix, data []byte) []byte {
 	copy(out[len(prefix):], data)
 	return out
 }
+
+func JoinBytes2(prefix byte, data ...[]byte) []byte {
+	out := []byte{prefix}
+	for _, d := range data {
+		out = append(out, d...)
+	}
+	return out
+}

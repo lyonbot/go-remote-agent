@@ -11,19 +11,18 @@ import (
 	ptylib "github.com/creack/pty"
 )
 
-func (s *ptySessionRecv) setupPty() {
+func (s *PtySession) SetupPty() {
 	var pty *os.File
-	ws := s.ws
 
 	// listener: pty data write
-	s.handlers[0x00] = func(recv []byte) {
+	s.Handlers[0x00] = func(recv []byte) {
 		if pty != nil {
 			pty.Write(recv[1:])
 		}
 	}
 
 	// listener: start pty
-	s.handlers[0x01] = func(recv []byte) {
+	s.Handlers[0x01] = func(recv []byte) {
 		if pty != nil {
 			s.WriteDebugMessage("pty already opened")
 		} else {
@@ -54,24 +53,24 @@ func (s *ptySessionRecv) setupPty() {
 				return
 			}
 
-			s.wg.Add(1)
+			s.Wg.Add(1)
 			go func() {
 				pty_closed := make(chan bool, 2)
 				defer func() {
 					pty_closed <- true
 				}()
 
-				s.wg.Add(1)
+				s.Wg.Add(1)
 				go func() {
 					select {
 					case <-pty_closed: // pty closed
-					case <-s.ctx.Done(): // session end
+					case <-s.Ctx.Done(): // session end
 					}
 
 					pty.Close()
 					pty = nil
-					utils.TryWrite(ws.Write, []byte{0x02}) // pty closed
-					s.wg.Done()
+					s.Write([]byte{0x02}) // pty closed
+					s.Wg.Done()
 				}()
 
 				for {
@@ -82,16 +81,16 @@ func (s *ptySessionRecv) setupPty() {
 						return
 					}
 
-					utils.TryWrite(ws.Write, utils.PrependBytes([]byte{0x00}, data[:n]))
+					s.Write(utils.PrependBytes([]byte{0x00}, data[:n]))
 				}
 			}()
 
-			ws.Write <- []byte{0x01} // pty opened
+			s.Write([]byte{0x01}) // pty opened
 		}
 	}
 
 	// listener: close pty
-	s.handlers[0x02] = func(recv []byte) {
+	s.Handlers[0x02] = func(recv []byte) {
 		if pty != nil {
 			if err := pty.Close(); err != nil {
 				s.WriteDebugMessage(err.Error())
@@ -100,7 +99,7 @@ func (s *ptySessionRecv) setupPty() {
 	}
 
 	// listener: resize pty
-	s.handlers[0x03] = func(recv []byte) {
+	s.Handlers[0x03] = func(recv []byte) {
 		if pty != nil {
 			cols := uint16(binary.LittleEndian.Uint16(recv[1:]))
 			rows := uint16(binary.LittleEndian.Uint16(recv[3:]))

@@ -10,16 +10,20 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type ptySessionRecv struct {
-	ctx context.Context
-	ws  *utils.WSConnToChannelsResult
-	wg  *sync.WaitGroup
+type PtySession struct {
+	Ctx context.Context
+	Ws  *utils.WSConnToChannelsResult
+	Wg  *sync.WaitGroup
 
-	handlers []func(recv []byte) // length of 255
+	Handlers []func(recv []byte) // length of 255
 }
 
-func (s *ptySessionRecv) WriteDebugMessage(data string) {
-	s.ws.Write <- utils.PrependBytes([]byte{0x03}, []byte(data))
+func (s *PtySession) WriteDebugMessage(data string) {
+	s.Ws.Write <- utils.PrependBytes([]byte{0x03}, []byte(data))
+}
+
+func (s *PtySession) Write(data []byte) {
+	utils.TryWrite(s.Ws.Write, data)
 }
 
 func Run(task *biz.AgentNotify) {
@@ -41,21 +45,26 @@ func Run(task *biz.AgentNotify) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	session := &ptySessionRecv{
-		ctx:      ctx,
-		ws:       ws,
-		wg:       &wg,
-		handlers: make([]func(recv []byte), 255),
+	session := &PtySession{
+		Ctx:      ctx,
+		Ws:       ws,
+		Wg:       &wg,
+		Handlers: make([]func(recv []byte), 255),
 	}
 
-	session.setupPty()
-	session.setupFileTransfer()
+	session.SetupPty()
+	session.SetupFileTransfer()
+	session.SetupTcpProxy()
 
-	for recv := range ws.Read {
-		handler := session.handlers[recv[0]]
+	session.Run()
+	cancel()
+}
+
+func (s *PtySession) Run() {
+	for recv := range s.Ws.Read {
+		handler := s.Handlers[recv[0]]
 		if handler != nil {
-			handler(recv)
+			go handler(recv)
 		}
 	}
-	cancel()
 }

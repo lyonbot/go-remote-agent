@@ -24,7 +24,7 @@ type AgentConfig struct {
 
 var Config AgentConfig
 
-func init() {
+func InitConfig() {
 	configPath := flag.String("c", "config.yaml", "Config path")
 	asAgent := flag.Bool("a", false, "Set agent mode")
 	name := flag.String("n", "", "Agent name")

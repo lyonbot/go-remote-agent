@@ -78,6 +78,9 @@ S->A:
 - `0x04 <uint64 offset> <uint64 length> <file_path> <data>` - write a file chunk / truncate a file to length of *offset* (if *data* is empty)
 - `0x05 <file_path>` - read file info
 - `0x06 <uint64 offset> <uint64 length> <file_path>` - request to read a file chunk
+- `0x20 <uint32 id> <uint16 port> <string addr>` - open a TCP proxy channel `id`. If port is 0, the channel will talk in socks5 protocol.
+- `0x21 <uint32 id> <data>` - send data to proxy channel `id`.
+- `0x22 <uint32 id>` - close proxy channel `id`.
 
 A->S:
 
@@ -88,6 +91,9 @@ A->S:
 - `0x04 <uint64 offset> <file_path>` - file chunk written / file truncated
 - `0x05 <msgpack FileInfo>` - queried file info, see protocol.go
 - `0x06 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
+- `0x20 <uint32 id> <uint8 code> <string errmsg>` - proxy channel opened or not. code = 0 means success
+- `0x21 <uint32 id> <data>` - proxy channel data
+- `0x22 <uint32 id>` - proxy channel closed.
 
 #### version upgrade session
 

@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	biz.InitConfig()
 	if biz.Config.AsAgent {
 		agent.RunAgent()
 	} else {
