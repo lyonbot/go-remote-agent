@@ -21,3 +21,10 @@ type FileInfo struct {
 	Mode  uint32 `msg:"mode"`
 	Mtime int64  `msg:"mtime"`
 }
+
+type StartPtyRequest struct {
+	Cmd        string   `msg:"cmd"`
+	Args       []string `msg:"args"`
+	Env        []string `msg:"env"`
+	InheritEnv bool     `msg:"inherit_env"`
+}

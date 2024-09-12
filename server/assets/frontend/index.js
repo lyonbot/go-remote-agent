@@ -34,12 +34,35 @@ Alpine.data('the_app', function () {
       this.reload_agent_instances()
     },
 
+    pty_cmd: 'sh',
+    pty_args: '', // lines as args
+    pty_env: '', // e.g. TERM=xterm-256color
+    pty_inherit_env: true,
+
     // stage 2
     init_stage_2() {
       var { agent_name, agent_id } = this
+      var fitAddon = new FitAddon.FitAddon();
+
+      var termContainer = this.$refs.terminal;
+      function sendSizeToAgent() {
+        const view = new DataView(new ArrayBuffer(4*4+1));
+        view.setUint8(0, 0x03);
+        view.setUint16(1, term.cols, true);
+        view.setUint16(3, term.rows, true);
+        view.setUint16(5, Math.round(termContainer.offsetWidth), true);
+        view.setUint16(7, Math.round(termContainer.offsetHeight), true);
+        ws.send(new Uint8Array(view.buffer));
+      }
+
       term = new Terminal();
-      term.open(this.$refs.terminal);
+      term.loadAddon(fitAddon);
+      term.open(termContainer);
       term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m\r\n')
+      term.onResize(sendSizeToAgent)
+
+      window.term = term
+      window.addEventListener('resize', debounce(() => fitAddon.fit(), 500))
 
       const url = `./api/client/${agent_name}/pty/?api_key=${encodeURIComponent(this.api_key)}`;
       ws = new WebSocket(url);
@@ -47,7 +70,16 @@ Alpine.data('the_app', function () {
       ws.onopen = () => {
         term.write(`\x1B[1;3;32m[${agent_name}]\x1B[0m Connected\r\n`);
 
-        ws.send(new TextEncoder().encode('\x01sh'));
+        const opts = MessagePack.encode({
+          cmd: this.pty_cmd,
+          args: this.pty_args ? this.pty_args.split('\n') : [],
+          env: this.pty_env ? this.pty_env.split('\n') : [],
+          inherit_env: this.pty_inherit_env,
+        })
+        const buf = new Uint8Array(opts.byteLength + 1)
+        buf.set(new TextEncoder().encode('\x01'), 0)
+        buf.set(opts, 1)
+        ws.send(buf);
       };
       ws.onmessage = async (e) => {
         const data = new Uint8Array(await e.data.arrayBuffer())
@@ -58,6 +90,7 @@ Alpine.data('the_app', function () {
             break;
           case 0x01:
             term.write(`\x1B[1;3;32m[${agent_name}]\x1B[0m Pty Opened\r\n`);
+            fitAddon.fit();
             break;
           case 0x02:
             term.write(`\x1B[1;3;31m[${agent_name}]\x1B[0m Pty Closed, connection intact.\r\n`);
@@ -242,7 +275,7 @@ Alpine.data('the_app', function () {
     },
     async uploadFileChunk(path, offset, chunk) {
       const promise = makePromise(`uploadFileChunk:${offset}:${path}`)
-      
+
       const pathBytes = new TextEncoder().encode(path)
       const payload = new Uint8Array(chunk.byteLength + 17 + pathBytes.byteLength)
       const view = new DataView(payload.buffer)
@@ -275,3 +308,22 @@ Alpine.data('the_app', function () {
 
   return app
 })
+
+// a debounce with leading and trailing call
+function debounce(func, wait = 500) {
+  let timeout = null
+  return function () {
+    const context = this
+    const args = arguments
+    const later = function () {
+      timeout = null
+      func.apply(context, args)
+    }
+    if (timeout !== null) {
+      clearTimeout(timeout)
+    } else {
+      func.apply(context, args)
+    }
+    timeout = setTimeout(later, wait)
+  }
+}

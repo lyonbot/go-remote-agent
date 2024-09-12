@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"os/exec"
 	"remote-agent/biz"
@@ -47,18 +48,34 @@ func run_pty(task *biz.AgentNotify) {
 		t := recv[0]
 
 		switch t {
-		case 0x00:
+		case 0x00: // pty data write
 			if pty != nil {
 				pty.Write(recv[1:])
 			}
 
-		case 0x01:
+		case 0x01: // start pty
 			if pty != nil {
 				write_debug_message("pty already opened")
 			} else {
-				cmd_str := strings.Split(string(recv[1:]), "\x00")
-				c := exec.Command(cmd_str[0], cmd_str[1:]...)
-				c.Env = append(c.Env, "TERM=xterm-256color")
+				req := biz.StartPtyRequest{}
+
+				if len(recv[1:]) > 0 {
+					if _, err := req.UnmarshalMsg(recv[1:]); err != nil {
+						write_debug_message(err.Error())
+						break
+					}
+				}
+				if req.Cmd == "" {
+					req.Cmd = "sh"
+				}
+
+				c := exec.Command(req.Cmd, req.Args...)
+				if req.InheritEnv {
+					c.Env = append(os.Environ(), req.Env...)
+				} else {
+					c.Env = req.Env
+				}
+
 				new_pty, err := ptylib.Start(c)
 				if err != nil {
 					write_debug_message(err.Error())
@@ -89,10 +106,27 @@ func run_pty(task *biz.AgentNotify) {
 				}
 			}
 
-		case 0x02:
+		case 0x02: // close pty
 			if pty != nil {
 				if err := pty.Close(); err != nil {
 					write_debug_message(err.Error())
+				}
+			}
+
+		case 0x03: // resize pty
+			if pty != nil {
+				cols := uint16(binary.LittleEndian.Uint16(recv[1:]))
+				rows := uint16(binary.LittleEndian.Uint16(recv[3:]))
+				width := uint16(binary.LittleEndian.Uint16(recv[5:]))
+				height := uint16(binary.LittleEndian.Uint16(recv[7:]))
+				size := ptylib.Winsize{
+					Cols: cols,
+					Rows: rows,
+					X:    width,
+					Y:    height,
+				}
+				if err := ptylib.Setsize(pty, &size); err != nil {
+					write_debug_message(fmt.Sprintf("pty resize failed: %s", err.Error()))
 				}
 			}
 

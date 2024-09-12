@@ -68,9 +68,13 @@ In pty session, the server will act as transparent proxy between client and agen
 S->A:
 
 - `0x00 <data>` - pty data
-- `0x01 <cmd>` - start a pty session. cmd is usually `sh`. if has parameters, use `\x00` as separator
+- `0x01 <msgpack>` - start a pty session. msgpack is optional, may contains these fields:
+  - `cmd`: string, command to run. default is `sh`
+  - `args`: string[] like `["arg1", "arg2"]`
+  - `env`: string[] like `["FOO=bar", "BAR=foo"]`
+  - `no_inherit_env`: bool, if true, don't inherit environment variables from parent process
 - `0x02` - close pty
-- `0x03` - (not defined)
+- `0x03 <uint16 cols> <uint16 rows> <uint16 width> <uint16 height>` - resize pty
 - `0x04 <uint64 offset> <uint64 length> <file_path> <data>` - write a file chunk / truncate a file to length of *offset* (if *data* is empty)
 - `0x05 <file_path>` - read file info
 - `0x06 <uint64 offset> <uint64 length> <file_path>` - request to read a file chunk

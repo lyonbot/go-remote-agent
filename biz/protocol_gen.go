@@ -411,3 +411,261 @@ func (z *FileInfo) Msgsize() (s int) {
 	s = 1 + 5 + msgp.StringPrefixSize + len(z.Path) + 5 + msgp.Int64Size + 5 + msgp.Uint32Size + 6 + msgp.Int64Size
 	return
 }
+
+// DecodeMsg implements msgp.Decodable
+func (z *StartPtyRequest) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "cmd":
+			z.Cmd, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Cmd")
+				return
+			}
+		case "args":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "Args")
+				return
+			}
+			if cap(z.Args) >= int(zb0002) {
+				z.Args = (z.Args)[:zb0002]
+			} else {
+				z.Args = make([]string, zb0002)
+			}
+			for za0001 := range z.Args {
+				z.Args[za0001], err = dc.ReadString()
+				if err != nil {
+					err = msgp.WrapError(err, "Args", za0001)
+					return
+				}
+			}
+		case "env":
+			var zb0003 uint32
+			zb0003, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "Env")
+				return
+			}
+			if cap(z.Env) >= int(zb0003) {
+				z.Env = (z.Env)[:zb0003]
+			} else {
+				z.Env = make([]string, zb0003)
+			}
+			for za0002 := range z.Env {
+				z.Env[za0002], err = dc.ReadString()
+				if err != nil {
+					err = msgp.WrapError(err, "Env", za0002)
+					return
+				}
+			}
+		case "inherit_env":
+			z.InheritEnv, err = dc.ReadBool()
+			if err != nil {
+				err = msgp.WrapError(err, "InheritEnv")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *StartPtyRequest) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 4
+	// write "cmd"
+	err = en.Append(0x84, 0xa3, 0x63, 0x6d, 0x64)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Cmd)
+	if err != nil {
+		err = msgp.WrapError(err, "Cmd")
+		return
+	}
+	// write "args"
+	err = en.Append(0xa4, 0x61, 0x72, 0x67, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.Args)))
+	if err != nil {
+		err = msgp.WrapError(err, "Args")
+		return
+	}
+	for za0001 := range z.Args {
+		err = en.WriteString(z.Args[za0001])
+		if err != nil {
+			err = msgp.WrapError(err, "Args", za0001)
+			return
+		}
+	}
+	// write "env"
+	err = en.Append(0xa3, 0x65, 0x6e, 0x76)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.Env)))
+	if err != nil {
+		err = msgp.WrapError(err, "Env")
+		return
+	}
+	for za0002 := range z.Env {
+		err = en.WriteString(z.Env[za0002])
+		if err != nil {
+			err = msgp.WrapError(err, "Env", za0002)
+			return
+		}
+	}
+	// write "inherit_env"
+	err = en.Append(0xab, 0x69, 0x6e, 0x68, 0x65, 0x72, 0x69, 0x74, 0x5f, 0x65, 0x6e, 0x76)
+	if err != nil {
+		return
+	}
+	err = en.WriteBool(z.InheritEnv)
+	if err != nil {
+		err = msgp.WrapError(err, "InheritEnv")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *StartPtyRequest) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 4
+	// string "cmd"
+	o = append(o, 0x84, 0xa3, 0x63, 0x6d, 0x64)
+	o = msgp.AppendString(o, z.Cmd)
+	// string "args"
+	o = append(o, 0xa4, 0x61, 0x72, 0x67, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Args)))
+	for za0001 := range z.Args {
+		o = msgp.AppendString(o, z.Args[za0001])
+	}
+	// string "env"
+	o = append(o, 0xa3, 0x65, 0x6e, 0x76)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Env)))
+	for za0002 := range z.Env {
+		o = msgp.AppendString(o, z.Env[za0002])
+	}
+	// string "inherit_env"
+	o = append(o, 0xab, 0x69, 0x6e, 0x68, 0x65, 0x72, 0x69, 0x74, 0x5f, 0x65, 0x6e, 0x76)
+	o = msgp.AppendBool(o, z.InheritEnv)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *StartPtyRequest) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "cmd":
+			z.Cmd, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Cmd")
+				return
+			}
+		case "args":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Args")
+				return
+			}
+			if cap(z.Args) >= int(zb0002) {
+				z.Args = (z.Args)[:zb0002]
+			} else {
+				z.Args = make([]string, zb0002)
+			}
+			for za0001 := range z.Args {
+				z.Args[za0001], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Args", za0001)
+					return
+				}
+			}
+		case "env":
+			var zb0003 uint32
+			zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Env")
+				return
+			}
+			if cap(z.Env) >= int(zb0003) {
+				z.Env = (z.Env)[:zb0003]
+			} else {
+				z.Env = make([]string, zb0003)
+			}
+			for za0002 := range z.Env {
+				z.Env[za0002], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Env", za0002)
+					return
+				}
+			}
+		case "inherit_env":
+			z.InheritEnv, bts, err = msgp.ReadBoolBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "InheritEnv")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *StartPtyRequest) Msgsize() (s int) {
+	s = 1 + 4 + msgp.StringPrefixSize + len(z.Cmd) + 5 + msgp.ArrayHeaderSize
+	for za0001 := range z.Args {
+		s += msgp.StringPrefixSize + len(z.Args[za0001])
+	}
+	s += 4 + msgp.ArrayHeaderSize
+	for za0002 := range z.Env {
+		s += msgp.StringPrefixSize + len(z.Env[za0002])
+	}
+	s += 12 + msgp.BoolSize
+	return
+}

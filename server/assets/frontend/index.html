@@ -10,6 +10,7 @@
     <div>
       <link href="./xterm.min.css" rel="stylesheet" />
       <script src="./xterm.min.js"></script>
+      <script src="./xterm-addon-fit.min.js"></script>
       <script src="./msgpack.min.js"></script>
       <script src="./alpine.min.js"></script>
       <script src="./index.js"></script>
@@ -34,12 +35,22 @@
               </template>
             </select>
 
-            <p x-show="agent_name">
-              <button type="submit">
-                Connect to
-                <span x-text="agent_name"></span>
-              </button>
-            </p>
+            <div x-show="agent_name">
+              <p>
+                <button type="submit">
+                  Connect to
+                  <span x-text="agent_name"></span>
+                </button>
+              </p>
+              <details>
+                <summary>PTY</summary>
+                <ul>
+                  <li>Cmd: <input type="text" x-model="pty_cmd" /></li>
+                  <li>Args: <textarea type="text" x-model="pty_args"></textarea></li>
+                  <li>Env: <textarea type="text" x-model="pty_env" placeholder="FOO=bar"></textarea></li>
+                  <li>Inherit Env: <input type="checkbox" x-model="pty_inherit_env" /></li>
+              </details>
+            </div>
           </fo>
         </template>
 
