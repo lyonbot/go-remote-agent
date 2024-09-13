@@ -9,7 +9,7 @@ Alpine.data('the_app', function () {
     agent_instances: [],
     agent_id: -1,
     get agent_instance() {
-      return this.agent_instances.find(x => x.id == this.agent_id)
+      return this.agent_instances.find(x => x.id == this.agent_id) || {}
     },
     get agent_name() {
       return this.agent_instance?.name
@@ -46,15 +46,12 @@ Alpine.data('the_app', function () {
       this.upgrade_show_dialog = true
       this.upgrade_logs = ''
       this.upgrade_logs += `agent: ${this.agent_name}\n`
-      this.upgrade_logs += `agent_id: ${this.agent_id}\n`
+      this.upgrade_logs += `agent_id: ${this.agent_id}\n\n`
 
       // POST /api/client/:agent_name/upgrade/ and stream response
-      fetch(`./api/client/${this.agent_name}/upgrade/`, {
+      fetch(`./api/client/${this.agent_name}/upgrade/?agent_id=${this.agent_id}`, {
         method: 'POST',
         headers: { 'X-API-Key': this.api_key },
-        body: JSON.stringify({
-          agent_id: this.agent_id,
-        }),
       })
         .then(res => res.body.getReader())
         .then(async reader => {
@@ -65,8 +62,9 @@ Alpine.data('the_app', function () {
 
             const chunk = decoder.decode(value)
             this.upgrade_logs += chunk
-            controller.enqueue(chunk)
           }
+
+          this.upgrade_logs += '\n(please reload agent list !!!)'
         })
     },
 
