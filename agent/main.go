@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"remote-agent/agent/agent_pty"
+	"remote-agent/agent/agent_upgrade"
 	"remote-agent/biz"
 	"time"
 
@@ -18,6 +19,11 @@ var task_stream = make(chan *biz.AgentNotify, 5)
 var ctx, cancel_agent_task_stream = context.WithCancel(context.Background())
 
 func listen() {
+	// it is tend to not closing the channel,
+	// so after upgrading, this process won't exit and the systemctl will not restart it.
+	//
+	// defer close(task_stream)
+
 	url := biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name
 	run := func() error {
 		req, err := http.NewRequest("GET", url, nil)
@@ -77,7 +83,7 @@ func RunAgent() {
 		case "pty":
 			go agent_pty.Run(msg)
 		case "upgrade":
-			go run_upgrade(msg)
+			go agent_upgrade.Run(msg, cancel_agent_task_stream)
 		}
 	}
 }

@@ -20,6 +20,7 @@ func RunServer() {
 	http.HandleFunc("/api/client/{agent_name}/", client_handler.HandleClientListAgent)
 	http.HandleFunc("/api/client/{agent_name}/exec/", client_handler.HandleClientExec)
 	http.HandleFunc("/api/client/{agent_name}/pty/", client_handler.HandleClientPty)
+	http.HandleFunc("/api/client/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
 
 	http.HandleFunc("/", assets.HandleWebAssets)
 

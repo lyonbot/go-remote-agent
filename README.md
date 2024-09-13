@@ -109,8 +109,8 @@ Note: in each step, agent may send `0x99 <error_message>` to server, and server 
 1. S->A: `0x00` -- check whether upgradable. sometimes agent cannot rename itself.
 2. A->S: `0x00 <executable_path>` -- continue
 3. S->A: `0x01 [int64 total_size]` -- send agent executable info
-4. (Repeat) S->A: `0x02 [int64 offset] [data]` & A->S `0x00 [int64 new_offset]` -- send agent executable chunk
-5. A->S: `0x01` -- executable renamed
+4. (Repeating send chunks) S->A: `0x02 [int64 offset] [data]` & A->S `0x00 [int64 new_offset]`
+5. A->S: `0x01` -- recv done
 6. A->S: `0x02` -- new executable started, we're running now
 
 ### GET /api/client/
@@ -164,6 +164,16 @@ For client.
 Open a pty session. This is a WebSocket connection.
 
 The data protocol is same as above "pty session" section.
+
+You can put query parameters:
+
+- `agent_id`: (optional) agent instance id, must match the agent name
+
+### POST /api/client/:agent_name/upgrade/
+
+For client.
+
+Upgrade the agent to a new executable, matching the one that server is running.
 
 You can put query parameters:
 

@@ -43,16 +43,18 @@ func IsUserAgentCanBeUpgraded(userAgent string) bool {
 		return false
 	}
 
-	platform := userAgent[parenthesis_from+1 : parenthesis_to]
+	platform := userAgent[parenthesis_from : parenthesis_to+1]
 	if platform != fmt.Sprintf("(%s; %s)", runtime.GOOS, runtime.GOARCH) {
 		return false
 	}
 
 	// check version
-	time, err := strconv.ParseInt(userAgent[strings.Index(userAgent, "@")+1:], 10, 64)
+	agentVersionTimeStr := userAgent[strings.Index(userAgent, "@")+1:]
+	agentVersionTimeStr = agentVersionTimeStr[:strings.Index(agentVersionTimeStr, " ")]
+	agentVersionTime, err := strconv.ParseInt(agentVersionTimeStr, 10, 64)
 	if err != nil {
 		return false
 	}
 
-	return time != 0 && time < VersionTime
+	return agentVersionTime != 0 && agentVersionTime < VersionTime
 }

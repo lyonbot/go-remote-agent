@@ -42,8 +42,21 @@
                   Connect to
                   <span x-text="agent_name"></span>
                 </button>
+
+                <button x-show="agent_instance.is_upgradable" type="button" x-on:click="startUpgrade">Upgrade</button>
+                <span x-text="agent_instance.remote_addr" style="color: blue"></span>
+                <span x-text="agent_instance.user_agent" style="color: gray"></span>
               </p>
-              <details>
+
+              <div x-show="upgrade_show_dialog" id="upgradeDialog">
+                <p>
+                  Upgrade Logs
+                  <button type="button" x-on:click="upgrade_show_dialog=false">Close</button>
+                </p>
+                <pre x-text="upgrade_logs"></pre>
+              </div>
+
+              <details id="ptyConnOptions">
                 <summary>PTY</summary>
                 <table border="0">
                   <tr>
@@ -52,15 +65,19 @@
                   </tr>
                   <tr>
                     <td>Args:</td>
-                    <td><textarea type="text" x-model="pty_args" placeholder="one per line"></textarea></td>
+                    <td><textarea rows="3" type="text" x-model="pty_args" placeholder="one per line"></textarea></td>
                   </tr>
                   <tr>
                     <td>Env:</td>
-                    <td><textarea type="text" x-model="pty_env" placeholder="FOO=bar"></textarea></td>
-                  </tr>
-                  <tr>
-                    <td>Inherit Env:</td>
-                    <td><input type="checkbox" x-model="pty_inherit_env" /></td>
+                    <td>
+                      <textarea rows="3" type="text" x-model="pty_env" placeholder="FOO=bar"></textarea>
+                      <div>
+                        <label>
+                          <input type="checkbox" x-model="pty_inherit_env" />
+                          Inherit Env
+                        </label>
+                      </div>
+                    </td>
                   </tr>
                 </table>
               </details>
@@ -108,11 +125,7 @@
               <input type="file" x-ref="upload_picker" style="display: none" />
             </div>
 
-            <div
-              id="ptyToolbarProgress"
-              x-init="fs_init_progress_bar($el)"
-              style="background-color: blue"
-            ></div>
+            <div id="ptyToolbarProgress" x-init="fs_init_progress_bar($el)" style="background-color: blue"></div>
           </div>
         </template>
       </div>

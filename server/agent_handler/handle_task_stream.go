@@ -28,10 +28,8 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	// setup in agents
 	agent := new(Agent)
 	if agent_raw, ok := Agents.LoadOrStore(agent_name, agent); ok {
-		log.Printf("reuse agent: %s", agent_name)
 		agent = agent_raw.(*Agent)
 	} else {
-		log.Printf("new agent: %s", agent_name)
 		agent.Name = agent_name
 		agent.Channel = make(chan []byte, 5)
 	}
@@ -39,10 +37,9 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	agent.Count.Add(1)
 	defer func() {
 		remain := agent.Count.Add(-1)
-		log.Printf("agent leave: %s, remain: %d", agent_name, remain)
 		if remain == 0 {
 			agent.Delete()
-			log.Printf("agent deleted: %s", agent_name)
+			log.Printf("last agent leave: %s", agent_name)
 		}
 	}()
 
@@ -74,6 +71,9 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	agent.Instances.Store(instance_id, &instance)
 	defer agent.Instances.Delete(instance_id)
 	defer close(instance_chan)
+
+	log.Printf("new agent: %s (instance_id: %d)", agent_name, instance_id)
+	defer log.Printf("agent leave: %s (instance_id: %d)", agent_name, instance_id)
 
 	// keep alive interval
 

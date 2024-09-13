@@ -8,8 +8,11 @@ Alpine.data('the_app', function () {
     api_key: localStorage.getItem('api_key') || '',
     agent_instances: [],
     agent_id: -1,
+    get agent_instance() {
+      return this.agent_instances.find(x => x.id == this.agent_id)
+    },
     get agent_name() {
-      return this.agent_instances.find(x => x.id == this.agent_id)?.name
+      return this.agent_instance?.name
     },
     reload_agent_instances: function () {
       localStorage.setItem('api_key', this.api_key)
@@ -34,6 +37,42 @@ Alpine.data('the_app', function () {
       this.reload_agent_instances()
     },
 
+    // ----------------------------------------------
+    // upgrade
+
+    upgrade_show_dialog: false,
+    upgrade_logs: '',
+    startUpgrade() {
+      this.upgrade_show_dialog = true
+      this.upgrade_logs = ''
+      this.upgrade_logs += `agent: ${this.agent_name}\n`
+      this.upgrade_logs += `agent_id: ${this.agent_id}\n`
+
+      // POST /api/client/:agent_name/upgrade/ and stream response
+      fetch(`./api/client/${this.agent_name}/upgrade/`, {
+        method: 'POST',
+        headers: { 'X-API-Key': this.api_key },
+        body: JSON.stringify({
+          agent_id: this.agent_id,
+        }),
+      })
+        .then(res => res.body.getReader())
+        .then(async reader => {
+          const decoder = new TextDecoder()
+          while (true) {
+            const { value, done } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value)
+            this.upgrade_logs += chunk
+            controller.enqueue(chunk)
+          }
+        })
+    },
+
+    // ----------------------------------------------
+    // pty
+
     pty_cmd: 'sh',
     pty_args: '', // lines as args
     pty_env: 'TERM=xterm-256color',
@@ -46,7 +85,7 @@ Alpine.data('the_app', function () {
 
       var termContainer = this.$refs.terminal;
       function sendSizeToAgent() {
-        const view = new DataView(new ArrayBuffer(4*4+1));
+        const view = new DataView(new ArrayBuffer(4 * 4 + 1));
         view.setUint8(0, 0x03);
         view.setUint16(1, term.cols, true);
         view.setUint16(3, term.rows, true);

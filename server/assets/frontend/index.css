@@ -8,6 +8,18 @@ body {
   padding: 2em;
 }
 
+#upgradeDialog {
+  border: 1px solid #ccc;
+  padding: 1em;
+  margin-bottom: 1em;
+}
+
+#ptyConnOptions textarea,
+#ptyConnOptions input[type="text"] {
+  width: 200px;
+  box-sizing: border-box;
+}
+
 #ptyApp {
   position: relative;
   display: flex;
