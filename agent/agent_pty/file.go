@@ -9,7 +9,7 @@ import (
 
 func (s *PtySession) SetupFileTransfer() {
 	// upload file chunk
-	s.Handlers[0x04] = func(recv []byte) {
+	s.Handlers[0x10] = func(recv []byte) {
 		offset := int64(binary.LittleEndian.Uint64(recv[1:]))
 		length := int64(binary.LittleEndian.Uint64(recv[9:]))
 		data_since := int64(len(recv)) - length
@@ -20,14 +20,14 @@ func (s *PtySession) SetupFileTransfer() {
 			return
 		}
 		s.Write(utils.JoinBytes2(
-			0x04,
+			0x10,
 			binary.LittleEndian.AppendUint64(nil, uint64(offset)),
 			[]byte(path),
 		))
 	}
 
 	// read file info
-	s.Handlers[0x05] = func(recv []byte) {
+	s.Handlers[0x11] = func(recv []byte) {
 		path := string(recv[1:])
 		info, err := os.Stat(path)
 		if err != nil {
@@ -46,11 +46,11 @@ func (s *PtySession) SetupFileTransfer() {
 			s.WriteDebugMessage(err.Error())
 			return
 		}
-		s.Write(utils.PrependBytes([]byte{0x05}, msg_bytes))
+		s.Write(utils.PrependBytes([]byte{0x11}, msg_bytes))
 	}
 
 	// read file chunk
-	s.Handlers[0x06] = func(recv []byte) {
+	s.Handlers[0x12] = func(recv []byte) {
 		offset := int64(binary.LittleEndian.Uint64(recv[1:]))
 		length := int64(binary.LittleEndian.Uint64(recv[9:]))
 		file_path := string(recv[17:])
@@ -63,7 +63,7 @@ func (s *PtySession) SetupFileTransfer() {
 
 		actual_length := int64(len(data))
 		s.Write(utils.JoinBytes2(
-			0x06,
+			0x12,
 			binary.LittleEndian.AppendUint64(nil, uint64(offset)),
 			binary.LittleEndian.AppendUint64(nil, uint64(actual_length)),
 			[]byte(file_path),

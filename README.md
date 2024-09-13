@@ -75,22 +75,27 @@ S->A:
   - `no_inherit_env`: bool, if true, don't inherit environment variables from parent process
 - `0x02` - close pty
 - `0x03 <uint16 cols> <uint16 rows> <uint16 width> <uint16 height>` - resize pty
-- `0x04 <uint64 offset> <uint64 length> <file_path> <data>` - write a file chunk / truncate a file to length of *offset* (if *data* is empty)
-- `0x05 <file_path>` - read file info
-- `0x06 <uint64 offset> <uint64 length> <file_path>` - request to read a file chunk
+
+- `0x10 <uint64 offset> <uint64 length> <file_path> <data>` - write a file chunk / truncate a file to length of _offset_ (if _data_ is empty)
+- `0x11 <file_path>` - read file info
+- `0x12 <uint64 offset> <uint64 length> <file_path>` - request to read a file chunk
+
 - `0x20 <uint32 id> <uint16 port> <string addr>` - open a TCP proxy channel `id`. If port is 0, the channel will talk in socks5 protocol.
 - `0x21 <uint32 id> <data>` - send data to proxy channel `id`.
 - `0x22 <uint32 id>` - close proxy channel `id`.
 
 A->S:
 
+- `0xff <message_str>` - debug message
+
 - `0x00 <data>` - pty data
 - `0x01` - pty opened
 - `0x02` - pty closed
-- `0x03 <message_str>` - debug message
-- `0x04 <uint64 offset> <file_path>` - file chunk written / file truncated
-- `0x05 <msgpack FileInfo>` - queried file info, see protocol.go
-- `0x06 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
+
+- `0x10 <uint64 offset> <file_path>` - file chunk written / file truncated
+- `0x11 <msgpack FileInfo>` - queried file info, see protocol.go
+- `0x12 <uint64 offset> <uint64 length> <file_path> <data>` - read a file chunk
+
 - `0x20 <uint32 id> <uint8 code> <string errmsg>` - proxy channel opened or not. code = 0 means success
 - `0x21 <uint32 id> <data>` - proxy channel data
 - `0x22 <uint32 id>` - proxy channel closed.
