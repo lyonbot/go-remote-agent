@@ -55,6 +55,13 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 
 	instance_id := agent_instance_id_counter.Add(1)
 	user_agent := r.Header.Get("User-Agent")
+	remote_addr := r.RemoteAddr
+	if t := r.Header.Get("X-Real-IP"); t != "" {
+		remote_addr = remote_addr + ",real-ip=" + t
+	}
+	if t := r.Header.Get("X-Forwarded-For"); t != "" {
+		remote_addr = remote_addr + ",forwarded-for=" + t
+	}
 	instance_chan := make(chan []byte, 5)
 	instance := AgentInstance{
 		Id:            instance_id,
@@ -62,7 +69,7 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 		UserAgent:     user_agent,
 		IsUpgradable:  biz.IsUserAgentCanBeUpgraded(user_agent),
 		JoinAt:        time.Now(),
-		RemoteAddr:    r.RemoteAddr,
+		RemoteAddr:    remote_addr,
 		NotifyChannel: instance_chan,
 	}
 

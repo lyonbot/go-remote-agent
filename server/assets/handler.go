@@ -4,6 +4,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"remote-agent/biz"
 	"strings"
 )
 
@@ -25,6 +26,7 @@ func HandleWebAssets(w http.ResponseWriter, r *http.Request) {
 		// is a file
 		// log.Println("Requesting static file", path)
 		ext := filepath.Ext(path)
+		w.Header().Add("Server", biz.UserAgent)
 		w.Header().Add("Content-Type", mime.TypeByExtension(ext))
 		w.WriteHeader(http.StatusOK)
 		w.Write(p)
@@ -32,5 +34,6 @@ func HandleWebAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 404
+	w.Header().Add("Server", biz.UserAgent)
 	http.Error(w, "404 Not Found", http.StatusNotFound)
 }
