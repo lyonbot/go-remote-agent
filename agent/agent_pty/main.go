@@ -2,12 +2,10 @@ package agent_pty
 
 import (
 	"context"
+	"remote-agent/agent/agent_common"
 	"remote-agent/biz"
 	"remote-agent/utils"
-	"strings"
 	"sync"
-
-	"github.com/gorilla/websocket"
 )
 
 type PtySession struct {
@@ -27,9 +25,7 @@ func (s *PtySession) Write(data []byte) {
 }
 
 func Run(task *biz.AgentNotify) {
-	url := biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name + "/" + task.Id
-	url = strings.Replace(url, "http", "ws", 1)
-	c, _, err := websocket.DefaultDialer.Dial(url, nil)
+	c, err := agent_common.MakeWsConn(task.Id)
 	if err != nil {
 		return
 	}

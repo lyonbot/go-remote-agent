@@ -24,10 +24,9 @@ func RunServer() {
 
 	http.HandleFunc("/", assets.HandleWebAssets)
 
+	log.Println("Listening on", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatalln("failed to ListenAndServe:", err)
 		panic(err)
 	}
-
-	log.Println("Listening on", addr)
 }

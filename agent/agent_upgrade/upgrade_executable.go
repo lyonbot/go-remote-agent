@@ -9,21 +9,24 @@ import (
 )
 
 type ExecutableUpgrade struct {
-	exec_path, temp_path string
-	file                 *os.File
+	ExecPath string   // the path of the executable
+	TempPath string   // the backup path of current executable
+	file     *os.File // current writing file
 }
 
+// truncate the new binary file, before writing. this operation can be omitted.
 func (upgrade *ExecutableUpgrade) Truncate(size int64) error {
 	return upgrade.file.Truncate(size)
 }
 
+// write data to the new binary file
 func (upgrade *ExecutableUpgrade) Write(data []byte) (n int, err error) {
 	return upgrade.file.Write(data)
 }
 
-// close file and try pulling up the executable
+// close file and try start the new binary
 // do nothing if already closed.
-// otherwise, if fails to start the new executable, it will revert
+// otherwise, if fails to start the new executable, it will revert and remove the temp file.
 func (upgrade *ExecutableUpgrade) Close() (err error) {
 	if upgrade.file == nil {
 		return fmt.Errorf("file already closed")
@@ -34,14 +37,14 @@ func (upgrade *ExecutableUpgrade) Close() (err error) {
 
 	defer func() {
 		if err != nil {
-			os.Remove(upgrade.exec_path)
-			os.Rename(upgrade.temp_path, upgrade.exec_path)
+			os.Remove(upgrade.ExecPath)
+			os.Rename(upgrade.TempPath, upgrade.ExecPath)
 		}
 	}()
 
 	// start the new executable
 
-	cmd := exec.Command(upgrade.exec_path, os.Args[1:]...)
+	cmd := exec.Command(upgrade.ExecPath, os.Args[1:]...)
 	cmd.Env = os.Environ()
 	if err = cmd.Start(); err != nil {
 		return fmt.Errorf("failed to run executable: %w", err)
@@ -62,13 +65,15 @@ func (upgrade *ExecutableUpgrade) Close() (err error) {
 	}
 
 	// very success
-	os.Remove(upgrade.temp_path)
+	os.Remove(upgrade.TempPath)
 	return nil
 }
 
-// try to generate a "temp_path", rename current executable "path" to a "temp_path"
-// and create a empty file to "path"
-func makeExecutableUpgrade() (upgrade *ExecutableUpgrade, err error) {
+// start upgrading current executable
+//
+// try to generate a "TempPath", rename current executable "ExecPath" to a "TempPath"
+// and create a empty file to "ExecPath" for writing
+func StartUpgradeExecutable() (upgrade *ExecutableUpgrade, err error) {
 	// Get the current executable exec_path
 	var exec_path, temp_path string
 
@@ -115,9 +120,9 @@ func makeExecutableUpgrade() (upgrade *ExecutableUpgrade, err error) {
 	}
 
 	upgrade = &ExecutableUpgrade{
-		exec_path: exec_path,
-		temp_path: temp_path,
-		file:      file,
+		ExecPath: exec_path,
+		TempPath: temp_path,
+		file:     file,
 	}
 
 	return

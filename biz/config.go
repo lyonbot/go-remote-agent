@@ -10,7 +10,7 @@ import (
 
 type AgentConfig struct {
 	Name    string // agent name (server name or agent name)
-	AsAgent bool   `yaml:"client"` // true for agent
+	AsAgent bool   `yaml:"as_agent"` // true for agent
 
 	// for server
 	Addr   string // listen address, defaults to "0.0.0.0"
@@ -73,7 +73,5 @@ func InitConfig() {
 		if Config.Port == 0 {
 			Config.Port = 8080
 		}
-
-		log.Printf("Listening on %s:%d", Config.Addr, Config.Port)
 	}
 }

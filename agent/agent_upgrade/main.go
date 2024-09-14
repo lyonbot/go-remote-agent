@@ -4,18 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"remote-agent/agent/agent_common"
 	"remote-agent/biz"
 	"remote-agent/utils"
-	"strings"
 	"sync"
-
-	"github.com/gorilla/websocket"
 )
 
 func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
-	url := biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name + "/" + task.Id
-	url = strings.Replace(url, "http", "ws", 1)
-	c, _, err := websocket.DefaultDialer.Dial(url, nil)
+	c, err := agent_common.MakeWsConn(task.Id)
 	if err != nil {
 		return
 	}
@@ -35,13 +31,13 @@ func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
 			return fmt.Errorf("bad request")
 		}
 
-		upgrade, err := makeExecutableUpgrade()
+		upgrade, err := StartUpgradeExecutable()
 		if err != nil {
 			return fmt.Errorf("failed to make executable backup: %w", err)
 		}
 		defer upgrade.Close()
 
-		ws.Write <- utils.PrependBytes([]byte{0x00}, []byte(upgrade.exec_path))
+		ws.Write <- utils.PrependBytes([]byte{0x00}, []byte(upgrade.ExecPath))
 
 		// ---- recv executable info
 		recv, ok = <-ws.Read

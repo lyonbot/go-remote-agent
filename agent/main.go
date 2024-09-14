@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"remote-agent/agent/agent_common"
 	"remote-agent/agent/agent_pty"
 	"remote-agent/agent/agent_upgrade"
 	"remote-agent/biz"
@@ -24,7 +25,7 @@ func listen() {
 	//
 	// defer close(task_stream)
 
-	url := biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name
+	url := agent_common.GetAgentAPIUrl("")
 	run := func() error {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
@@ -33,7 +34,7 @@ func listen() {
 		req.Header.Set("User-Agent", biz.UserAgent)
 		req = req.WithContext(ctx)
 
-		client := http.Client{}
+		client := agent_common.MakeHttpClient()
 		resp, err := client.Do(req)
 		if err != nil {
 			return err
