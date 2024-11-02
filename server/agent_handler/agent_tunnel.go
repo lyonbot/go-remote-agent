@@ -37,7 +37,7 @@ func MakeAgentTunnel(agent_name, agent_id string) (tunnel *AgentTunnel, agent *A
 		} else if id_num, err := strconv.ParseUint(agent_id, 10, 64); err == nil {
 			if instance, ok := agent.Instances.Load(id_num); ok {
 				agent_instance = instance.(*AgentInstance)
-				C_notify_agent = agent_instance.NotifyChannel
+				C_notify_agent = agent_instance.C
 			}
 		}
 	}

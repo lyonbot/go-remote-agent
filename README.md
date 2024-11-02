@@ -100,7 +100,10 @@ List all proxy channels.
 
 ### POST /api/proxy/:channel_id/
 
-Create a proxy channel.
+Create a proxy channel. The payload is a FormData:
+
+- `agent_id` or `agent_name`: agent instance id or name
+- `target`: address like `127.0.0.1:8080`
 
 ### DELETE /api/proxy/:channel_id/
 

@@ -22,6 +22,9 @@ func RunServer() {
 	http.HandleFunc("/api/agent/{agent_name}/pty/", client_handler.HandleClientPty)
 	http.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
 
+	http.HandleFunc("/api/proxy/", client_handler.HandleProxyListAll)
+	http.HandleFunc("/api/proxy/{channel_id}/", client_handler.HandleProxyEdit)
+
 	http.HandleFunc("/", assets.HandleWebAssets)
 
 	log.Println("Listening on", addr)
