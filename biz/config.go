@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -13,9 +14,10 @@ type AgentConfig struct {
 	AsAgent bool   `yaml:"as_agent"` // true for agent
 
 	// for server
-	Addr   string // listen address, defaults to "0.0.0.0"
-	Port   int32  // listen port, defaults to 8080
-	APIKey string `yaml:"api_key"` // API key for client API. If set, must provided via `X-API-Key` header or `Authorization: Bearer <api_key>` header
+	Addr            string // listen address, defaults to "0.0.0.0"
+	Port            int32  // listen port, defaults to 8080
+	APIKey          string `yaml:"api_key"`           // API key for client API. If set, must provided via `X-API-Key` header or `Authorization: Bearer <api_key>` header
+	ProxyServerHost string `yaml:"proxy_server_host"` // like `foo-*.your-domain.com`. must contain `*`
 
 	// for agent
 	BaseUrl  string `yaml:"base_url"` // base url, including protocol and port, without `/api`
@@ -31,6 +33,7 @@ func InitConfig() {
 	baseUrl := flag.String("b", "", "Base URL (only for agent)")
 	insecure := flag.Bool("i", false, "Insecure (only for agent)")
 	api_key := flag.String("ak", "", "API key (only for server)")
+	proxy_server_host := flag.String("psh", "", "Proxy server host (only for server, must contains *)")
 	flag.Parse()
 
 	if data, err := os.ReadFile(*configPath); err == nil {
@@ -49,6 +52,9 @@ func InitConfig() {
 	}
 	if *api_key != "" {
 		Config.APIKey = *api_key
+	}
+	if *proxy_server_host != "" {
+		Config.ProxyServerHost = *proxy_server_host
 	}
 
 	// defaults
@@ -72,6 +78,12 @@ func InitConfig() {
 		}
 		if Config.Port == 0 {
 			Config.Port = 8080
+		}
+		if Config.APIKey == "" {
+			log.Println("[!] APIKey not set, any client can access agents!")
+		}
+		if Config.ProxyServerHost != "" && !strings.Contains(Config.ProxyServerHost, "*") {
+			log.Fatalf("ProxyServerHost must contains *")
 		}
 	}
 }

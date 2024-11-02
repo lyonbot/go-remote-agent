@@ -13,14 +13,14 @@ import (
 func RunServer() {
 	addr := fmt.Sprintf("%s:%d", biz.Config.Addr, biz.Config.Port)
 
-	http.HandleFunc("/api/agent/{agent_name}", agent_handler.HandleTaskStreamRequest)
-	http.HandleFunc("/api/agent/{agent_name}/{token}", agent_handler.HandleAgentTunnelRequest)
+	http.HandleFunc("/api/for_agent/{agent_name}", agent_handler.HandleTaskStreamRequest)
+	http.HandleFunc("/api/for_agent/{agent_name}/{token}", agent_handler.HandleAgentTunnelRequest)
 
-	http.HandleFunc("/api/client/", client_handler.HandleClientListAll)
-	http.HandleFunc("/api/client/{agent_name}/", client_handler.HandleClientListAgent)
-	http.HandleFunc("/api/client/{agent_name}/exec/", client_handler.HandleClientExec)
-	http.HandleFunc("/api/client/{agent_name}/pty/", client_handler.HandleClientPty)
-	http.HandleFunc("/api/client/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
+	http.HandleFunc("/api/agent/", client_handler.HandleClientListAll)
+	http.HandleFunc("/api/agent/{agent_name}/", client_handler.HandleClientListAgent)
+	http.HandleFunc("/api/agent/{agent_name}/exec/", client_handler.HandleClientExec)
+	http.HandleFunc("/api/agent/{agent_name}/pty/", client_handler.HandleClientPty)
+	http.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
 
 	http.HandleFunc("/", assets.HandleWebAssets)
 

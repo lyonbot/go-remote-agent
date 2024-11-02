@@ -10,7 +10,7 @@ import (
 )
 
 func GetAgentAPIUrl(path string) string {
-	return biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name + path
+	return biz.Config.BaseUrl + "/api/for_agent/" + biz.Config.Name + path
 }
 
 func MakeHttpClient() *http.Client {

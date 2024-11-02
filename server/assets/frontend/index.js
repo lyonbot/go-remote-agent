@@ -16,7 +16,7 @@ Alpine.data('the_app', function () {
     },
     reload_agent_instances: function () {
       localStorage.setItem('api_key', this.api_key)
-      fetch(`./api/client/`, { headers: { 'X-API-Key': this.api_key } })
+      fetch(`./api/agent/`, { headers: { 'X-API-Key': this.api_key } })
         .then(res => res.json())
         .then(data => {
           this.agent_instances = data
@@ -48,8 +48,8 @@ Alpine.data('the_app', function () {
       this.upgrade_logs += `agent: ${this.agent_name}\n`
       this.upgrade_logs += `agent_id: ${this.agent_id}\n\n`
 
-      // POST /api/client/:agent_name/upgrade/ and stream response
-      fetch(`./api/client/${this.agent_name}/upgrade/?agent_id=${this.agent_id}`, {
+      // POST /api/agent/:agent_name/upgrade/ and stream response
+      fetch(`./api/agent/${this.agent_name}/upgrade/?agent_id=${this.agent_id}`, {
         method: 'POST',
         headers: { 'X-API-Key': this.api_key },
       })
@@ -101,7 +101,7 @@ Alpine.data('the_app', function () {
       window.term = term
       window.addEventListener('resize', debounce(() => fitAddon.fit(), 500))
 
-      const url = `./api/client/${agent_name}/pty/?api_key=${encodeURIComponent(this.api_key)}`;
+      const url = `./api/agent/${agent_name}/pty/?api_key=${encodeURIComponent(this.api_key)}`;
       ws = new WebSocket(url);
 
       ws.onopen = () => {

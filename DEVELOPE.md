@@ -23,8 +23,8 @@ Then open three terminals:
 - Client: (see below)
 
 ```sh
-curl http://127.0.0.1:8080/api/client/bot1/exec/ -F "cmd=ffmpeg -codecs" -F stdout=1
-curl http://127.0.0.1:8080/api/client/bot1/exec/ -F "cmd=wc -c" -F stdin=@main.go -F stdout=1
+curl http://127.0.0.1:8080/api/agent/bot1/exec/ -F "cmd=ffmpeg -codecs" -F stdout=1
+curl http://127.0.0.1:8080/api/agent/bot1/exec/ -F "cmd=wc -c" -F stdin=@main.go -F stdout=1
 
 # event stream format
 ```
