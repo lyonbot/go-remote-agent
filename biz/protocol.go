@@ -28,3 +28,21 @@ type StartPtyRequest struct {
 	Env        []string `msg:"env"`
 	InheritEnv bool     `msg:"inherit_env"`
 }
+
+type ProxyHttpRequest struct {
+	Method  string            `msg:"method"`
+	URL     string            `msg:"url"`
+	Headers []ProxyHttpHeader `msg:"headers"`
+	Body    []byte            `msg:"body"` // beware: disallowed for ws:// or wss://
+}
+
+type ProxyHttpResponse struct {
+	ConnectionError string            `msg:"connection_error"`
+	StatusCode      int32             `msg:"status_code"`
+	Headers         []ProxyHttpHeader `msg:"headers"`
+}
+
+type ProxyHttpHeader struct {
+	Name  string `msg:"name"`
+	Value string `msg:"value"`
+}

@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"io"
+	"log"
 	"net"
 	"remote-agent/utils"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestAgentPtyTcp(t *testing.T) {
@@ -28,14 +32,18 @@ func TestAgentPtyTcp(t *testing.T) {
 	}()
 
 	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
-	wsRead <- utils.JoinBytes2(
+	connect_command := utils.JoinBytes2(
 		0x20,
 		idBytes, // id
 		binary.LittleEndian.AppendUint16(nil, uint16(echoServer.Port)), // port
 		[]byte("127.0.0.1"), // addr
 	)
 
+	// -------------------------------------
+	// 1. disconnect by remote
+
 	// shall connect to 127.0.0.1:80
+	wsRead <- connect_command
 	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:6]) != "20deadbeef00" {
 		t.Fatalf("failed to connect: %s", bytes2hex(recv))
 	}
@@ -55,16 +63,39 @@ func TestAgentPtyTcp(t *testing.T) {
 	}
 
 	// recv closing
-	echoServer.Stop()
+	echoServer.KickAllClients()
 	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "22deadbeef" {
 		t.Fatalf("failed to recv closing: %s", bytes2hex(recv))
+	}
+
+	// -------------------------------------
+	// 2. disconnect by user
+
+	wsRead <- connect_command
+	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:6]) != "20deadbeef00" {
+		t.Fatalf("failed to connect: %s", bytes2hex(recv))
+	}
+	wsRead <- hex2bytes("21deadbeefdeadbeef")
+	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "21deadbeefdeadbeef" {
+		t.Fatalf("failed to recv data 0: %s", bytes2hex(recv))
+	}
+
+	wsRead <- hex2bytes("22deadbeef") // close
+	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "22deadbeef" {
+		t.Fatalf("failed to recv closing: %s", bytes2hex(recv))
+	}
+	time.Sleep(100 * time.Millisecond)
+	if count := echoServer.OnlineCount.Load(); count != 0 {
+		t.Fatalf("server online count not zero: %d", count)
 	}
 }
 
 type MockServer struct {
-	Port  int
-	Stop  context.CancelFunc
-	Write func(data []byte)
+	Port           int
+	Stop           context.CancelFunc
+	Write          func(data []byte)
+	OnlineCount    atomic.Int32
+	KickAllClients func()
 }
 
 // start a mock echo server, it accepts data up to 4k
@@ -86,12 +117,7 @@ func startEchoTcpServer() (server *MockServer, err error) {
 		Port: l.Addr().(*net.TCPAddr).Port,
 		Stop: func() {
 			l.Close()
-			conns.Range(func(key, value interface{}) bool {
-				conn := value.(*net.TCPConn)
-				conn.Close()
-				return true
-			})
-			wg.Wait()
+			server.KickAllClients()
 		},
 		Write: func(data []byte) {
 			conns.Range(func(key, value interface{}) bool {
@@ -100,7 +126,15 @@ func startEchoTcpServer() (server *MockServer, err error) {
 				return true
 			})
 		},
+		KickAllClients: func() {
+			conns.Range(func(key, value interface{}) bool {
+				conn := value.(*net.TCPConn)
+				conn.Close()
+				return true
+			})
+		},
 	}
+	log.Println("echoServer start listening on", server.Port)
 
 	wg.Add(1)
 	go func() {
@@ -113,8 +147,10 @@ func startEchoTcpServer() (server *MockServer, err error) {
 				return
 			}
 
+			server.OnlineCount.Add(1)
 			wg.Add(1)
 			go func() {
+				defer server.OnlineCount.Add(-1)
 				defer wg.Done()
 				defer conn.Close()
 
@@ -122,17 +158,21 @@ func startEchoTcpServer() (server *MockServer, err error) {
 				conns.Store(key, conn)
 				defer conns.Delete(key)
 
-				for {
-					data := make([]byte, 4096)
-					n, err := conn.Read(data)
-					if err != nil {
-						return
-					}
+				defer log.Println("echoServer disconnected from", key)
+				log.Println("echoServer accepted tcp connection from", key)
 
-					if _, err := conn.Write(data[:n]); err != nil {
-						return
-					}
-				}
+				io.Copy(conn, conn)
+				// for {
+				// 	data := make([]byte, 4096)
+				// 	n, err := conn.Read(data)
+				// 	if err != nil {
+				// 		return
+				// 	}
+
+				// 	if _, err := conn.Write(data[:n]); err != nil {
+				// 		return
+				// 	}
+				// }
 			}()
 		}
 	}()

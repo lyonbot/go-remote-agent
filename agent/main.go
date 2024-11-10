@@ -81,7 +81,7 @@ func RunAgent() {
 		switch msg.Type {
 		case "shell":
 			go run_shell(msg)
-		case "pty":
+		case "pty": // historical reason, actually is "omni"
 			go agent_omni.Run(msg)
 		case "upgrade":
 			go agent_upgrade.Run(msg, cancel_agent_task_stream)

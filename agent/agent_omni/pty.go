@@ -14,6 +14,11 @@ import (
 func (s *PtySession) SetupPty() {
 	var pty *os.File
 
+	// listener: debug message
+	s.Handlers[0xff] = func(recv []byte) {
+		s.WriteDebugMessage(string(recv[1:]))
+	}
+
 	// listener: pty data write
 	s.Handlers[0x00] = func(recv []byte) {
 		if pty != nil {

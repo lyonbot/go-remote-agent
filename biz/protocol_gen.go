@@ -413,6 +413,704 @@ func (z *FileInfo) Msgsize() (s int) {
 }
 
 // DecodeMsg implements msgp.Decodable
+func (z *ProxyHttpHeader) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "name":
+			z.Name, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Name")
+				return
+			}
+		case "value":
+			z.Value, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Value")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z ProxyHttpHeader) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "name"
+	err = en.Append(0x82, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Name)
+	if err != nil {
+		err = msgp.WrapError(err, "Name")
+		return
+	}
+	// write "value"
+	err = en.Append(0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Value)
+	if err != nil {
+		err = msgp.WrapError(err, "Value")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z ProxyHttpHeader) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 2
+	// string "name"
+	o = append(o, 0x82, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
+	o = msgp.AppendString(o, z.Name)
+	// string "value"
+	o = append(o, 0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
+	o = msgp.AppendString(o, z.Value)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ProxyHttpHeader) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "name":
+			z.Name, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Name")
+				return
+			}
+		case "value":
+			z.Value, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Value")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z ProxyHttpHeader) Msgsize() (s int) {
+	s = 1 + 5 + msgp.StringPrefixSize + len(z.Name) + 6 + msgp.StringPrefixSize + len(z.Value)
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
+func (z *ProxyHttpRequest) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "method":
+			z.Method, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Method")
+				return
+			}
+		case "url":
+			z.URL, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "URL")
+				return
+			}
+		case "headers":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "Headers")
+				return
+			}
+			if cap(z.Headers) >= int(zb0002) {
+				z.Headers = (z.Headers)[:zb0002]
+			} else {
+				z.Headers = make([]ProxyHttpHeader, zb0002)
+			}
+			for za0001 := range z.Headers {
+				var zb0003 uint32
+				zb0003, err = dc.ReadMapHeader()
+				if err != nil {
+					err = msgp.WrapError(err, "Headers", za0001)
+					return
+				}
+				for zb0003 > 0 {
+					zb0003--
+					field, err = dc.ReadMapKeyPtr()
+					if err != nil {
+						err = msgp.WrapError(err, "Headers", za0001)
+						return
+					}
+					switch msgp.UnsafeString(field) {
+					case "name":
+						z.Headers[za0001].Name, err = dc.ReadString()
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Name")
+							return
+						}
+					case "value":
+						z.Headers[za0001].Value, err = dc.ReadString()
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Value")
+							return
+						}
+					default:
+						err = dc.Skip()
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001)
+							return
+						}
+					}
+				}
+			}
+		case "body":
+			z.Body, err = dc.ReadBytes(z.Body)
+			if err != nil {
+				err = msgp.WrapError(err, "Body")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *ProxyHttpRequest) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 4
+	// write "method"
+	err = en.Append(0x84, 0xa6, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Method)
+	if err != nil {
+		err = msgp.WrapError(err, "Method")
+		return
+	}
+	// write "url"
+	err = en.Append(0xa3, 0x75, 0x72, 0x6c)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.URL)
+	if err != nil {
+		err = msgp.WrapError(err, "URL")
+		return
+	}
+	// write "headers"
+	err = en.Append(0xa7, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.Headers)))
+	if err != nil {
+		err = msgp.WrapError(err, "Headers")
+		return
+	}
+	for za0001 := range z.Headers {
+		// map header, size 2
+		// write "name"
+		err = en.Append(0x82, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
+		if err != nil {
+			return
+		}
+		err = en.WriteString(z.Headers[za0001].Name)
+		if err != nil {
+			err = msgp.WrapError(err, "Headers", za0001, "Name")
+			return
+		}
+		// write "value"
+		err = en.Append(0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
+		if err != nil {
+			return
+		}
+		err = en.WriteString(z.Headers[za0001].Value)
+		if err != nil {
+			err = msgp.WrapError(err, "Headers", za0001, "Value")
+			return
+		}
+	}
+	// write "body"
+	err = en.Append(0xa4, 0x62, 0x6f, 0x64, 0x79)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes(z.Body)
+	if err != nil {
+		err = msgp.WrapError(err, "Body")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *ProxyHttpRequest) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 4
+	// string "method"
+	o = append(o, 0x84, 0xa6, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64)
+	o = msgp.AppendString(o, z.Method)
+	// string "url"
+	o = append(o, 0xa3, 0x75, 0x72, 0x6c)
+	o = msgp.AppendString(o, z.URL)
+	// string "headers"
+	o = append(o, 0xa7, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Headers)))
+	for za0001 := range z.Headers {
+		// map header, size 2
+		// string "name"
+		o = append(o, 0x82, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
+		o = msgp.AppendString(o, z.Headers[za0001].Name)
+		// string "value"
+		o = append(o, 0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
+		o = msgp.AppendString(o, z.Headers[za0001].Value)
+	}
+	// string "body"
+	o = append(o, 0xa4, 0x62, 0x6f, 0x64, 0x79)
+	o = msgp.AppendBytes(o, z.Body)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ProxyHttpRequest) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "method":
+			z.Method, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Method")
+				return
+			}
+		case "url":
+			z.URL, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "URL")
+				return
+			}
+		case "headers":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Headers")
+				return
+			}
+			if cap(z.Headers) >= int(zb0002) {
+				z.Headers = (z.Headers)[:zb0002]
+			} else {
+				z.Headers = make([]ProxyHttpHeader, zb0002)
+			}
+			for za0001 := range z.Headers {
+				var zb0003 uint32
+				zb0003, bts, err = msgp.ReadMapHeaderBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Headers", za0001)
+					return
+				}
+				for zb0003 > 0 {
+					zb0003--
+					field, bts, err = msgp.ReadMapKeyZC(bts)
+					if err != nil {
+						err = msgp.WrapError(err, "Headers", za0001)
+						return
+					}
+					switch msgp.UnsafeString(field) {
+					case "name":
+						z.Headers[za0001].Name, bts, err = msgp.ReadStringBytes(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Name")
+							return
+						}
+					case "value":
+						z.Headers[za0001].Value, bts, err = msgp.ReadStringBytes(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Value")
+							return
+						}
+					default:
+						bts, err = msgp.Skip(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001)
+							return
+						}
+					}
+				}
+			}
+		case "body":
+			z.Body, bts, err = msgp.ReadBytesBytes(bts, z.Body)
+			if err != nil {
+				err = msgp.WrapError(err, "Body")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *ProxyHttpRequest) Msgsize() (s int) {
+	s = 1 + 7 + msgp.StringPrefixSize + len(z.Method) + 4 + msgp.StringPrefixSize + len(z.URL) + 8 + msgp.ArrayHeaderSize
+	for za0001 := range z.Headers {
+		s += 1 + 5 + msgp.StringPrefixSize + len(z.Headers[za0001].Name) + 6 + msgp.StringPrefixSize + len(z.Headers[za0001].Value)
+	}
+	s += 5 + msgp.BytesPrefixSize + len(z.Body)
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
+func (z *ProxyHttpResponse) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "connection_error":
+			z.ConnectionError, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "ConnectionError")
+				return
+			}
+		case "status_code":
+			z.StatusCode, err = dc.ReadInt32()
+			if err != nil {
+				err = msgp.WrapError(err, "StatusCode")
+				return
+			}
+		case "headers":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "Headers")
+				return
+			}
+			if cap(z.Headers) >= int(zb0002) {
+				z.Headers = (z.Headers)[:zb0002]
+			} else {
+				z.Headers = make([]ProxyHttpHeader, zb0002)
+			}
+			for za0001 := range z.Headers {
+				var zb0003 uint32
+				zb0003, err = dc.ReadMapHeader()
+				if err != nil {
+					err = msgp.WrapError(err, "Headers", za0001)
+					return
+				}
+				for zb0003 > 0 {
+					zb0003--
+					field, err = dc.ReadMapKeyPtr()
+					if err != nil {
+						err = msgp.WrapError(err, "Headers", za0001)
+						return
+					}
+					switch msgp.UnsafeString(field) {
+					case "name":
+						z.Headers[za0001].Name, err = dc.ReadString()
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Name")
+							return
+						}
+					case "value":
+						z.Headers[za0001].Value, err = dc.ReadString()
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Value")
+							return
+						}
+					default:
+						err = dc.Skip()
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001)
+							return
+						}
+					}
+				}
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *ProxyHttpResponse) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 3
+	// write "connection_error"
+	err = en.Append(0x83, 0xb0, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.ConnectionError)
+	if err != nil {
+		err = msgp.WrapError(err, "ConnectionError")
+		return
+	}
+	// write "status_code"
+	err = en.Append(0xab, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt32(z.StatusCode)
+	if err != nil {
+		err = msgp.WrapError(err, "StatusCode")
+		return
+	}
+	// write "headers"
+	err = en.Append(0xa7, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.Headers)))
+	if err != nil {
+		err = msgp.WrapError(err, "Headers")
+		return
+	}
+	for za0001 := range z.Headers {
+		// map header, size 2
+		// write "name"
+		err = en.Append(0x82, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
+		if err != nil {
+			return
+		}
+		err = en.WriteString(z.Headers[za0001].Name)
+		if err != nil {
+			err = msgp.WrapError(err, "Headers", za0001, "Name")
+			return
+		}
+		// write "value"
+		err = en.Append(0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
+		if err != nil {
+			return
+		}
+		err = en.WriteString(z.Headers[za0001].Value)
+		if err != nil {
+			err = msgp.WrapError(err, "Headers", za0001, "Value")
+			return
+		}
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *ProxyHttpResponse) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 3
+	// string "connection_error"
+	o = append(o, 0x83, 0xb0, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72)
+	o = msgp.AppendString(o, z.ConnectionError)
+	// string "status_code"
+	o = append(o, 0xab, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64, 0x65)
+	o = msgp.AppendInt32(o, z.StatusCode)
+	// string "headers"
+	o = append(o, 0xa7, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Headers)))
+	for za0001 := range z.Headers {
+		// map header, size 2
+		// string "name"
+		o = append(o, 0x82, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
+		o = msgp.AppendString(o, z.Headers[za0001].Name)
+		// string "value"
+		o = append(o, 0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
+		o = msgp.AppendString(o, z.Headers[za0001].Value)
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ProxyHttpResponse) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "connection_error":
+			z.ConnectionError, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "ConnectionError")
+				return
+			}
+		case "status_code":
+			z.StatusCode, bts, err = msgp.ReadInt32Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "StatusCode")
+				return
+			}
+		case "headers":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Headers")
+				return
+			}
+			if cap(z.Headers) >= int(zb0002) {
+				z.Headers = (z.Headers)[:zb0002]
+			} else {
+				z.Headers = make([]ProxyHttpHeader, zb0002)
+			}
+			for za0001 := range z.Headers {
+				var zb0003 uint32
+				zb0003, bts, err = msgp.ReadMapHeaderBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Headers", za0001)
+					return
+				}
+				for zb0003 > 0 {
+					zb0003--
+					field, bts, err = msgp.ReadMapKeyZC(bts)
+					if err != nil {
+						err = msgp.WrapError(err, "Headers", za0001)
+						return
+					}
+					switch msgp.UnsafeString(field) {
+					case "name":
+						z.Headers[za0001].Name, bts, err = msgp.ReadStringBytes(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Name")
+							return
+						}
+					case "value":
+						z.Headers[za0001].Value, bts, err = msgp.ReadStringBytes(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001, "Value")
+							return
+						}
+					default:
+						bts, err = msgp.Skip(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Headers", za0001)
+							return
+						}
+					}
+				}
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *ProxyHttpResponse) Msgsize() (s int) {
+	s = 1 + 17 + msgp.StringPrefixSize + len(z.ConnectionError) + 12 + msgp.Int32Size + 8 + msgp.ArrayHeaderSize
+	for za0001 := range z.Headers {
+		s += 1 + 5 + msgp.StringPrefixSize + len(z.Headers[za0001].Name) + 6 + msgp.StringPrefixSize + len(z.Headers[za0001].Value)
+	}
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
 func (z *StartPtyRequest) DecodeMsg(dc *msgp.Reader) (err error) {
 	var field []byte
 	_ = field

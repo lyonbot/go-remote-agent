@@ -124,7 +124,15 @@ API client may pass API key in one of these ways:
 
 (Only works on `Server`)
 
-You can provide a host pattern like `*.proxy.my-site.com` via `proxy_server_host` in the config file, or via `-psh` command line.
+Server may act like a ngrok. You can provide a host pattern like `*.proxy.my-site.com` via `proxy_server_host` in the config file, or via `-psh` command line.
+
+```
++------+    xxx.proxy.my-site.com   +----------+    "omni" session    +---------+
+| User | -------------------------> |  Server  | -------------------> |  Agent  |
++------+                            +----------+                      +---------+
+```
+
+Once a proxy channel is created by user, the server will create "omni" session to agent, and forward user requests via it.
 
 ## "omni" session protocol
 
@@ -135,6 +143,10 @@ In a "omni" session, you can:
 - proxy TCP connections via agent.
 
 ### common features
+
+S->A:
+
+- `0xff <message_str>` - ping (agent will send back `0xff <message_str>`)
 
 A->S:
 
@@ -182,12 +194,18 @@ S->A:
 - `0x20 <uint32 id> <uint16 port> <string addr>` - open a TCP proxy channel `id`. connect to `addr:port`.
 - `0x21 <uint32 id> <data>` - send data to proxy channel `id`.
 - `0x22 <uint32 id>` - close proxy channel `id`.
+- `0x23 <uint32 id> <msgpack ProxyHttpRequest>` - open a http proxy channel `id`, send http request. success or fail will be responded via `0x23`.
 
 A->S:
 
 - `0x20 <uint32 id> <uint8 code> <string errmsg>` - proxy channel opened or not. code = 0 means success
 - `0x21 <uint32 id> <data>` - proxy channel data.
 - `0x22 <uint32 id>` - proxy channel closed.
+- `0x23 <uint32 id> <msgpack ProxyHttpResponse>` - http proxy channel response. then body is transferred via `0x21`
+
+Caveats:
+
+- In websocket mode, `0x21` package format is `<uint8 messageType> <data>` so we can distinguish text or binary data.
 
 ## How Agent communicate with Server
 

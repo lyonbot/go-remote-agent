@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"io"
 	"sync"
 
@@ -18,6 +19,25 @@ func ReaderToChannel(ch chan<- []byte, r io.Reader) {
 			break
 		}
 		ch <- buf[:n]
+	}
+}
+
+// Read channel until context is done or the channel is closed.
+// It returns true if reading was stopped by context, false if the channel was closed.
+func ReadChanUnderContext[Data any](ctx context.Context, ch <-chan Data, callback func(data Data)) (stopped_by_context bool) {
+	ctxDone := ctx.Done()
+	for {
+		select {
+		case data, ok := <-ch:
+			if !ok {
+				// Channel is closed, hence stopped by the channel being closed
+				return false
+			}
+			callback(data)
+		case <-ctxDone:
+			// Stopped by context
+			return true
+		}
 	}
 }
 
@@ -40,15 +60,6 @@ func TryClose[Result any](ch chan<- Result) {
 func TryWrite[Result any](ch chan<- Result, data Result) {
 	if ch != nil {
 		ch <- data
-	}
-}
-
-func ChannelToWriter(ch <-chan []byte, w io.WriteCloser) {
-	defer w.Close()
-	for data := range ch {
-		if _, err := w.Write(data); err != nil {
-			return
-		}
 	}
 }
 
