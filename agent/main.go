@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"remote-agent/agent/agent_common"
-	"remote-agent/agent/agent_pty"
+	"remote-agent/agent/agent_omni"
 	"remote-agent/agent/agent_upgrade"
 	"remote-agent/biz"
 	"time"
@@ -82,7 +82,7 @@ func RunAgent() {
 		case "shell":
 			go run_shell(msg)
 		case "pty":
-			go agent_pty.Run(msg)
+			go agent_omni.Run(msg)
 		case "upgrade":
 			go agent_upgrade.Run(msg, cancel_agent_task_stream)
 		}

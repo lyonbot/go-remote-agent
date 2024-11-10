@@ -1,4 +1,4 @@
-package agent_pty
+package agent_omni
 
 import (
 	"encoding/binary"

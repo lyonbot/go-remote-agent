@@ -1,4 +1,4 @@
-package agent_pty_test
+package agent_omni_test
 
 import (
 	"bytes"

@@ -1,10 +1,10 @@
-package agent_pty_test
+package agent_omni_test
 
 import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"remote-agent/agent/agent_pty"
+	"remote-agent/agent/agent_omni"
 	"remote-agent/utils"
 	"sync"
 	"time"
@@ -31,7 +31,7 @@ func readWithTimeout(ch <-chan []byte) []byte {
 	}
 }
 
-func makeTestSession() (session *agent_pty.PtySession, wg *sync.WaitGroup, wsRead chan<- []byte, wsWrite <-chan []byte, cancel context.CancelFunc) {
+func makeTestSession() (session *agent_omni.PtySession, wg *sync.WaitGroup, wsRead chan<- []byte, wsWrite <-chan []byte, cancel context.CancelFunc) {
 	var ctx context.Context
 
 	ctx, cancel = context.WithCancel(context.Background())
@@ -45,7 +45,7 @@ func makeTestSession() (session *agent_pty.PtySession, wg *sync.WaitGroup, wsRea
 	}
 	wg = &sync.WaitGroup{}
 
-	session = &agent_pty.PtySession{
+	session = &agent_omni.PtySession{
 		Ctx:      ctx,
 		Ws:       ws,
 		Wg:       wg,

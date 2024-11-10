@@ -33,10 +33,3 @@ type AgentInstance struct {
 	C            chan<- []byte   `json:"-"` // write task to this agent
 	Ctx          context.Context `json:"-"` // if agent disconnected, this context will be Done
 }
-
-var AllProxyChannels = sync.Map{}
-
-type ProxyChannel struct {
-	Id  string
-	Ctx context.Context
-}
