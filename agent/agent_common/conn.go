@@ -10,7 +10,7 @@ import (
 )
 
 func GetAgentAPIUrl(path string) string {
-	return biz.Config.BaseUrl + "/api/for_agent/" + biz.Config.Name + path
+	return biz.Config.BaseUrl + "/api/agent/" + biz.Config.Name + path
 }
 
 func MakeHttpClient() *http.Client {
@@ -34,7 +34,10 @@ func MakeWsConn(taskId string) (*websocket.Conn, error) {
 			InsecureSkipVerify: biz.Config.Insecure,
 		},
 	}
-	c, _, err := dialer.Dial(url, nil)
+	headers := http.Header{}
+	headers.Set("User-Agent", biz.UserAgent)
+
+	c, _, err := dialer.Dial(url, headers)
 
 	if err != nil {
 		return nil, err

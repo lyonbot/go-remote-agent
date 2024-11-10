@@ -8,24 +8,36 @@ import (
 	"remote-agent/server/agent_handler"
 	"remote-agent/server/assets"
 	"remote-agent/server/client_handler"
+	"strings"
 )
 
 func RunServer() {
 	addr := fmt.Sprintf("%s:%d", biz.Config.Addr, biz.Config.Port)
 
-	http.HandleFunc("/api/for_agent/{agent_name}", agent_handler.HandleTaskStreamRequest)
-	http.HandleFunc("/api/for_agent/{agent_name}/{token}", agent_handler.HandleAgentTunnelRequest)
+	mux_agent := http.NewServeMux()
+	mux_agent.HandleFunc("/api/agent/{agent_name}", agent_handler.HandleTaskStreamRequest)
+	mux_agent.HandleFunc("/api/agent/{agent_name}/{token}", agent_handler.HandleAgentTunnelRequest)
 
-	http.HandleFunc("/api/agent/", client_handler.HandleClientListAll)
-	http.HandleFunc("/api/agent/{agent_name}/", client_handler.HandleClientListAgent)
-	http.HandleFunc("/api/agent/{agent_name}/exec/", client_handler.HandleClientExec)
-	http.HandleFunc("/api/agent/{agent_name}/pty/", client_handler.HandleClientPty)
-	http.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
+	mux_client := http.NewServeMux()
+	mux_client.HandleFunc("/api/agent/", client_handler.HandleClientListAll)
+	mux_client.HandleFunc("/api/agent/{agent_name}/", client_handler.HandleClientListAgent)
+	mux_client.HandleFunc("/api/agent/{agent_name}/exec/", client_handler.HandleClientExec)
+	mux_client.HandleFunc("/api/agent/{agent_name}/pty/", client_handler.HandleClientPty)
+	mux_client.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
+	mux_client.HandleFunc("/api/proxy/", client_handler.HandleProxyListAll)
+	mux_client.HandleFunc("/api/proxy/{channel_id}/", client_handler.HandleProxyEdit)
+	mux_client.HandleFunc("/", assets.HandleWebAssets)
 
-	http.HandleFunc("/api/proxy/", client_handler.HandleProxyListAll)
-	http.HandleFunc("/api/proxy/{channel_id}/", client_handler.HandleProxyEdit)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		user_agent := r.Header.Get("User-Agent")
+		is_agent := strings.HasPrefix(user_agent, "go-remote-agent/") || user_agent == ""
 
-	http.HandleFunc("/", assets.HandleWebAssets)
+		if is_agent {
+			mux_agent.ServeHTTP(w, r)
+		} else {
+			mux_client.ServeHTTP(w, r)
+		}
+	})
 
 	log.Println("Listening on", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {

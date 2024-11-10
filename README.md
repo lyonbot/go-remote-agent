@@ -193,15 +193,17 @@ A->S:
 
 (You may skip this part -- it's for developers only)
 
+Agents also talk to server in HTTP protocol, but based on the User-Agent header, they have different API entrypoints.
+
 When client request to run a command, the server will push a `AgentNotify` message with a `token`, to the agent.
-(Pushed via `/api/for_agent/:agent_name`)
+(Pushed via `/api/agent/:agent_name`)
 
 The agent will then connect to the server via WebSocket, with the `token`, then execute the command.
-(WebSocket connection via `/api/for_agent/:agent_name/:token`)
+(WebSocket connection via `/api/agent/:agent_name/:token`)
 
 Here is the list of agent-only APIs:
 
-### GET /api/for_agent/:agent_name
+### GET /api/agent/:agent_name
 
 For agent.
 
@@ -209,7 +211,7 @@ This is a binary stream. When a client want to run a command, the server will pu
 
 Each package starts with a `uint32` of length (in LittleEndian), then the data of `AgentNotify` (encoded by `msgp`), then a CRLF (`0x0d 0x0a`).
 
-### GET /api/for_agent/:agent_name/:token
+### GET /api/agent/:agent_name/:token
 
 For agent.
 
