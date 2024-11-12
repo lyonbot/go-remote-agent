@@ -8,6 +8,7 @@ import (
 	"remote-agent/server/agent_handler"
 	"remote-agent/server/assets"
 	"remote-agent/server/client_handler"
+	"remote-agent/server/proxy"
 	"strings"
 )
 
@@ -25,7 +26,7 @@ func RunServer() {
 	mux_client.HandleFunc("/api/agent/{agent_name}/pty/", client_handler.HandleClientPty)
 	mux_client.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
 	mux_client.HandleFunc("/api/proxy/", client_handler.HandleProxyListAll)
-	mux_client.HandleFunc("/api/proxy/{channel_id}/", client_handler.HandleProxyEdit)
+	mux_client.HandleFunc("/api/proxy/{host}/", client_handler.HandleProxyEdit)
 	mux_client.HandleFunc("/", assets.HandleWebAssets)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +36,11 @@ func RunServer() {
 		if is_agent {
 			mux_agent.ServeHTTP(w, r)
 		} else {
-			mux_client.ServeHTTP(w, r)
+			if proxyService, ok := proxy.ProxyServices.Load(r.Host); ok {
+				proxyService.(*proxy.Service).HandleRequest(w, r)
+			} else {
+				mux_client.ServeHTTP(w, r)
+			}
 		}
 	})
 

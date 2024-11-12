@@ -22,10 +22,10 @@
           <form id="initForm" x-init="init" x-on:submit.prevent="if(agent_name)stage=2">
             <p>APIKey: <input type="text" x-model="api_key" x-on:change="reload_agent_instances" /></p>
 
-            <p>
+            <h2>
               Agents
               <button type="button" x-on:click="reload_agent_instances">Reload</button>
-            </p>
+            </h2>
             <select x-model="agent_id" size="12" style="width: 100%">
               <template x-for="instance in agent_instances" :key="instance.id">
                 <option
@@ -83,6 +83,36 @@
               </details>
             </div>
           </form>
+        </template>
+
+        <template x-if="stage==1">
+          <div id="proxyForm" x-init="initProxy">
+            <h2>
+              Proxy
+              <button x-on:click="loadProxyList()">Reload</button>
+            </h2>
+            <ul>
+              <template x-for="p in proxyList" :key="p.host">
+                <li>
+                  <span x-text="p.host"></span>
+                  ->
+                  <span x-text="p.target"></span>
+
+                  <button x-on:click="deleteProxy(p.host)">Delete</button>
+                </li>
+              </template> 
+            </ul>
+            
+            <details>
+              <summary>Create Proxy</summary>
+              <p>host: <input x-model="proxyCreate.host"></p>
+              <p>target: <input x-model="proxyCreate.target" placeholder="eg. http://xxx"></p>
+              <p>agentName: <input x-model="proxyCreate.agentName"></p>
+              <p>agentId: <input x-model="proxyCreate.agentId"></p>
+              <p>replaceHost: <input x-model="proxyCreate.replaceHost" placeholder="eg. localhost:8080"></p>
+              <button x-on:click="addProxy()">Add</button>
+            </details>
+          </div>
         </template>
 
         <!-- stage 2: terminal -->

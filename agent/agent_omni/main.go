@@ -17,7 +17,7 @@ type PtySession struct {
 }
 
 func (s *PtySession) WriteDebugMessage(data string) {
-	s.Ws.Write <- utils.PrependBytes([]byte{0x03}, []byte(data))
+	s.Ws.Write <- utils.PrependBytes([]byte{0xff}, []byte(data))
 }
 
 func (s *PtySession) Write(data []byte) {
@@ -45,7 +45,7 @@ func Run(task *biz.AgentNotify) {
 		Ctx:      ctx,
 		Ws:       ws,
 		Wg:       &wg,
-		Handlers: make([]func(recv []byte), 255),
+		Handlers: make([]func(recv []byte), 256),
 	}
 
 	session.SetupPty()

@@ -38,6 +38,65 @@ Alpine.data('the_app', function () {
     },
 
     // ----------------------------------------------
+    // proxy
+
+    proxyList: [],
+    proxyCreate: {
+      host: "",
+      agentName: "",
+      agentId: "",
+      target: "",
+      replaceHost: "",
+    },
+    initProxy() {
+      this.loadProxyList()
+      const syncFromAgentId = () => {
+        this.proxyCreate = {
+          ...this.proxyCreate,
+          agentId: String(this.agent_instance?.id || ''),
+          agentName: this.agent_instance?.name || '',
+        }
+      }
+      this.$watch('agent_instance', syncFromAgentId)
+    },
+    loadProxyList() {
+      localStorage.setItem('api_key', this.api_key)
+      fetch(`./api/proxy/`, { headers: { 'X-API-Key': this.api_key } })
+        .then(res => res.json())
+        .then(list => (this.proxyList = list || []))
+    },
+    deleteProxy(host) {
+      fetch(`./api/proxy/${encodeURIComponent(host)}/`, { method: 'DELETE', headers: { 'X-API-Key': this.api_key } })
+        .then(res => res.json())
+        .then(r => {
+          if (r.error) alert('ERROR: ' + r.error)
+          this.loadProxyList()
+        })
+    },
+    addProxy() {
+      if (!this.proxyCreate.host) {
+        alert('host is empty')
+        return
+      }
+      fetch(`./api/proxy/${encodeURIComponent(this.proxyCreate.host)}/`, {
+        method: 'POST',
+        headers: { 'X-API-Key': this.api_key },
+        body: JSON.stringify({
+          target: this.proxyCreate.target,
+          agentName: this.proxyCreate.agentName,
+          agentId: this.proxyCreate.agentId,
+          replaceHost: this.proxyCreate.replaceHost,
+        }),
+      })
+        .then(res => res.json())
+        .then(r => {
+          if (r.error) alert('ERROR: ' + r.error)
+          this.loadProxyList()
+        })
+    },
+
+
+    // ----------------------------------------------
     // upgrade
 
     upgrade_show_dialog: false,

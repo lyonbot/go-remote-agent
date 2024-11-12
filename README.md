@@ -96,18 +96,20 @@ You can put query parameters:
 
 ### GET /api/proxy/
 
-List all proxy channels.
+List all proxy services.
 
-### POST /api/proxy/:channel_id/
+### POST /api/proxy/:host/
 
-Create a proxy channel. The payload is a FormData:
+Create a proxy service. The payload is a FormData:
 
+- `host`: domain for this proxy service
 - `agent_id` or `agent_name`: agent instance id or name
 - `target`: address like `http://127.0.0.1:8080`
+- `replaceHost`: optional string, force replace request host. defaults to `target`'s
 
-### DELETE /api/proxy/:channel_id/
+### DELETE /api/proxy/:host/
 
-Stop a proxy channel.
+Stop a proxy service.
 
 ## API Key
 

@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
 	"remote-agent/biz"
 	"remote-agent/server/agent_handler"
 	"remote-agent/utils"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,31 +20,37 @@ import (
 )
 
 type Service struct {
-	AgentName string
-	AgentId   string
+	Host      string `json:"host"`
+	AgentName string `json:"agentName"`
+	AgentId   string `json:"agentId"`
 
-	Ctx context.Context
+	Target      string `json:"target"`
+	ReplaceHost string `json:"replaceHost"`
 
-	conn atomic.Value // *connectionToAgent
+	ctx    context.Context
+	cancel context.CancelFunc
+	conn   *connectionToAgent
 }
 
 func (s *Service) ensureConnected() (c *connectionToAgent, err error) {
-	c = s.conn.Load().(*connectionToAgent)
+	c = s.conn
+
 	if c == nil {
 		// create new connection
-		c = NewConnectionToAgent(s.Ctx)
-		if s.conn.CompareAndSwap(nil, c) {
-			go c.run(s.AgentName, s.AgentId, func(err error) {
-				s.conn.CompareAndSwap(c, nil)
-			})
-		} else {
-			// someone is also creating it
-			c = s.conn.Load().(*connectionToAgent)
-			if c == nil {
-				err = errors.New("failed to create connection")
-				return
+		ctx, cancel := context.WithCancel(s.ctx)
+
+		c = newConnectionToAgent(ctx)
+		err := c.connect(s.AgentName, s.AgentId, func(err error) {
+			cancel()
+			if c == s.conn {
+				s.conn = nil
 			}
+		})
+		if err != nil {
+			return nil, err
 		}
+
+		s.conn = c
 	}
 
 	// wait for ready
@@ -62,10 +70,32 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bizRequest, err := func() (*biz.ProxyHttpRequest, error) {
-		url := r.URL
+		url := s.Target + r.URL.EscapedPath()
+		if r.URL.RawQuery != "" {
+			url += "?" + r.URL.RawQuery
+		}
+
 		isWebSocket := r.Header.Get("Upgrade") == "websocket"
 		if isWebSocket {
-			url.Scheme = "ws"
+			url = strings.Replace(url, "http", "ws", 1)
+		}
+
+		headers := biz.FromHttpRequestHeaders(r.Header)
+		if s.ReplaceHost != "" {
+			replaced := false
+			for i, h := range headers {
+				if h.Name == "Host" {
+					headers[i].Value = s.ReplaceHost
+					replaced = true
+					break
+				}
+			}
+			if !replaced {
+				headers = append(headers, biz.ProxyHttpHeader{
+					Name:  "Host",
+					Value: s.ReplaceHost,
+				})
+			}
 		}
 
 		var body []byte
@@ -84,8 +114,8 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 		bizRequest := &biz.ProxyHttpRequest{
 			Method:  r.Method,
-			URL:     r.URL.String(),
-			Headers: biz.FromHttpRequestHeaders(r.Header),
+			URL:     url,
+			Headers: headers,
 			Body:    body,
 		}
 		return bizRequest, nil
@@ -105,6 +135,10 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Service) Dispose() {
+	s.cancel()
+}
+
 // -----------------------------------------------------------------------------
 
 type connectionToAgent struct {
@@ -119,7 +153,7 @@ type connectionToAgent struct {
 	connected bool
 }
 
-func NewConnectionToAgent(ctx context.Context) *connectionToAgent {
+func newConnectionToAgent(ctx context.Context) *connectionToAgent {
 	ans := &connectionToAgent{
 		Ctx: ctx,
 	}
@@ -127,22 +161,25 @@ func NewConnectionToAgent(ctx context.Context) *connectionToAgent {
 	return ans
 }
 
-func (c *connectionToAgent) run(agent_name string, agent_id string, on_disconnected func(error)) {
+func (c *connectionToAgent) connect(agent_name string, agent_id string, onDisconnected func(error)) error {
 	tunnel, _, _, notifyAgent, C_to_agent, C_from_agent, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
-		on_disconnected(err)
-		return
+		onDisconnected(err)
+		return err
 	}
 
-	defer tunnel.Delete()
-	defer close(C_to_agent)
+	disconnect := func(err error) {
+		tunnel.Delete()
+		close(C_to_agent)
+		onDisconnected(err)
+	}
 
 	// notify agent
 	if err := notifyAgent(biz.AgentNotify{
 		Type: "pty",
 	}); err != nil {
-		on_disconnected(err)
-		return
+		disconnect(err)
+		return err
 	}
 
 	// send a ping
@@ -150,15 +187,18 @@ func (c *connectionToAgent) run(agent_name string, agent_id string, on_disconnec
 	C_to_agent <- ping
 	select {
 	case <-c.Ctx.Done():
-		on_disconnected(errors.New("parent context canceled"))
-		return
+		err := errors.New("parent context canceled")
+		disconnect(err)
+		return err
 	case <-time.After(time.Second * 5):
-		on_disconnected(errors.New("timeout"))
-		return
+		err := errors.New("timeout")
+		disconnect(err)
+		return err
 	case pong := <-C_from_agent:
 		if !bytes.Equal(ping, pong) {
-			on_disconnected(errors.New("ping failed"))
-			return
+			err := errors.New("ping failed. got " + hex.EncodeToString(pong))
+			disconnect(err)
+			return err
 		}
 	}
 
@@ -166,7 +206,7 @@ func (c *connectionToAgent) run(agent_name string, agent_id string, on_disconnec
 	c.chanToAgent = C_to_agent
 
 	go func() {
-		defer on_disconnected(nil)
+		defer disconnect(nil)
 
 		isAboutToClean := false
 		watchdogTicker := time.NewTicker(time.Minute * 5) // duration * 2 = kick timeout
@@ -176,13 +216,13 @@ func (c *connectionToAgent) run(agent_name string, agent_id string, on_disconnec
 			select {
 			case <-watchdogTicker.C:
 				if isAboutToClean {
-					on_disconnected(errors.New("watchdog timeout"))
+					disconnect(errors.New("watchdog timeout"))
 					return
 				} else {
 					isAboutToClean = true
 				}
 
-			case data, closed := <-C_from_agent:
+			case data, ok := <-C_from_agent:
 				if len(data) >= 5 {
 					isAboutToClean = false
 					idBytes := data[1:5]
@@ -191,7 +231,7 @@ func (c *connectionToAgent) run(agent_name string, agent_id string, on_disconnec
 						ch.(chan []byte) <- data
 					}
 				}
-				if closed {
+				if !ok {
 					return
 				}
 
@@ -205,6 +245,7 @@ func (c *connectionToAgent) run(agent_name string, agent_id string, on_disconnec
 	defer c.mu.Unlock()
 	c.connected = true
 	c.cond.Broadcast()
+	return nil
 }
 
 func (c *connectionToAgent) waitForReady() (err error) {
