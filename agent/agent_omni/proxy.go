@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func (s *PtySession) SetupTcpProxy() {
+func (s *PtySession) SetupProxy() {
 	type ProxyChannel struct {
 		FromUser chan<- []byte // data from user. user may close this to close the connection
 	}
@@ -94,12 +94,11 @@ func (s *PtySession) SetupTcpProxy() {
 				for {
 					data := make([]byte, 1024)
 					n, err := conn.Read(data)
-					if err != nil {
-						return
-					}
-
 					if n > 0 {
 						s.Write(utils.JoinBytes2(0x21, idBytes, data[:n]))
+					}
+					if err != nil {
+						return
 					}
 				}
 			}()
@@ -168,26 +167,27 @@ func (s *PtySession) SetupTcpProxy() {
 		go func() {
 			defer channels.CompareAndDelete(id, channel)
 
+			// prepare req
+			is_websocket := false
 			req := &biz.ProxyHttpRequest{}
-			if _, err := req.UnmarshalMsg(reqBytes); err != nil {
-				dial_result.ConnectionError = "bad request: " + err.Error()
-				send_dial_result()
-				return
+			{
+				if _, err := req.UnmarshalMsg(reqBytes); err != nil {
+					dial_result.ConnectionError = "bad request: " + err.Error()
+					send_dial_result()
+					return
+				}
+
+				url_parsed, err := url.Parse(req.URL)
+				if err != nil {
+					dial_result.ConnectionError = "bad url: " + err.Error()
+					send_dial_result()
+					return
+				}
+
+				is_websocket = url_parsed.Scheme == "ws" || url_parsed.Scheme == "wss"
 			}
 
-			url_parsed, err := url.Parse(req.URL)
-			if err != nil {
-				dial_result.ConnectionError = "bad url: " + err.Error()
-				send_dial_result()
-				return
-			}
-
-			req_header := http.Header{}
-			for _, header := range req.Headers {
-				req_header.Set(header.Name, header.Value)
-			}
-
-			is_websocket := url_parsed.Scheme == "ws" || url_parsed.Scheme == "wss"
+			// websocket
 			if is_websocket {
 				dialer := websocket.Dialer{
 					TLSClientConfig: &tls.Config{
@@ -195,7 +195,7 @@ func (s *PtySession) SetupTcpProxy() {
 					},
 				}
 
-				conn, resp, err := dialer.Dial(req.URL, req_header)
+				conn, resp, err := dialer.Dial(req.URL, biz.ToHttpRequestHeaders(req.Headers))
 				if err != nil {
 					dial_result.ConnectionError = "connect error: " + err.Error()
 					send_dial_result()
@@ -265,19 +265,49 @@ func (s *PtySession) SetupTcpProxy() {
 				}()
 			}
 
-			// regular http request, one-way data
+			// regular http request
 			if !is_websocket {
-				req_body_reader := bytes.NewReader(req.Body)
-				http_req, err := http.NewRequestWithContext(s.Ctx, req.Method, req.URL, req_body_reader)
+				if req.Body == nil {
+					req.Body = make([]byte, 0)
+				}
+
+				httpReqBodyReader := bytes.NewReader(req.Body)
+				httpCtx, cancelHttpCtx := context.WithCancel(s.Ctx)
+				httpReq, err := http.NewRequestWithContext(httpCtx, req.Method, req.URL, httpReqBodyReader)
 
 				if err != nil {
 					dial_result.ConnectionError = "bad request: " + err.Error()
 					send_dial_result()
+					cancelHttpCtx()
 					return
 				}
 
-				http_req.Header = req_header
-				http_res, err := http.DefaultClient.Do(http_req)
+				// --------
+
+				wg := sync.WaitGroup{}
+				defer wg.Wait()
+
+				{ // handle data from user -- wait for "0x22" close-connection package
+					C_user_data := make(chan []byte, 5)
+					channel.FromUser = C_user_data
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+
+						stopped_by_ctx := utils.ReadChanUnderContext(httpCtx, C_user_data, func(data []byte) {
+							// nothing to do -- http request is not duplex
+						})
+						channel.FromUser = nil
+						if stopped_by_ctx {
+							close(C_user_data)
+						} else {
+							cancelHttpCtx()
+						}
+					}()
+				}
+
+				httpReq.Header = biz.ToHttpRequestHeaders(req.Headers)
+				httpRes, err := http.DefaultClient.Do(httpReq)
 				if err != nil {
 					dial_result.ConnectionError = "connect error: " + err.Error()
 					send_dial_result()
@@ -285,57 +315,31 @@ func (s *PtySession) SetupTcpProxy() {
 				}
 
 				// ---- connection ok.
-				conn := http_res.Body
-				defer conn.Close()
+				httpResBody := httpRes.Body
+
+				defer httpResBody.Close()
 				defer s.Write(utils.JoinBytes2(0x22, idBytes)) // close connection
-
-				wg := sync.WaitGroup{}
 				defer wg.Wait()
-
-				// ---- continuous read data (actually not reading, just wait for aborting)
-				C_user_data := make(chan []byte, 5)
-				ctx, stop := context.WithCancel(s.Ctx)
-				channel.FromUser = C_user_data
-
-				wg.Add(1) // handle data from user
-				go func() {
-					defer wg.Done()
-					defer conn.Close() // if session end, or user close connection, close tcp connection
-
-					stopped_by_ctx := utils.ReadChanUnderContext(ctx, C_user_data, func(data []byte) {
-						// nothing to do -- http request is not duplex
-					})
-					channel.FromUser = nil
-					if stopped_by_ctx {
-						close(C_user_data)
-					}
-				}()
 
 				wg.Add(1) // handle data from remote
 				go func() {
 					defer wg.Done()
-					defer stop()
+					defer cancelHttpCtx()
 
 					// ---- ready for data transfer
-					for h := range http_res.Header {
-						dial_result.Headers = append(dial_result.Headers, biz.ProxyHttpHeader{
-							Name:  h,
-							Value: http_res.Header.Get(h),
-						})
-					}
-					dial_result.StatusCode = int32(http_res.StatusCode)
+					dial_result.StatusCode = int32(httpRes.StatusCode)
+					dial_result.Headers = biz.FromHttpRequestHeaders(httpRes.Header)
 					send_dial_result()
 
 					// ---- continuous send to user
 					for {
 						data := make([]byte, 1024)
-						n, err := conn.Read(data)
-						if err != nil {
-							return
-						}
-
+						n, err := httpResBody.Read(data)
 						if n > 0 {
 							s.Write(utils.JoinBytes2(0x21, idBytes, data[:n]))
+						}
+						if err != nil {
+							return
 						}
 					}
 				}()

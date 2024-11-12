@@ -81,12 +81,13 @@ func (s *PtySession) SetupPty() {
 				for {
 					data := make([]byte, 1024)
 					n, err := pty.Read(data)
+					if n > 0 {
+						s.Write(utils.PrependBytes([]byte{0x00}, data[:n]))
+					}
 					if err != nil {
 						s.WriteDebugMessage(err.Error())
 						return
 					}
-
-					s.Write(utils.PrependBytes([]byte{0x00}, data[:n]))
 				}
 			}()
 

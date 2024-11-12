@@ -46,3 +46,24 @@ type ProxyHttpHeader struct {
 	Name  string `msg:"name"`
 	Value string `msg:"value"`
 }
+
+func FromHttpRequestHeaders(v map[string][]string) []ProxyHttpHeader {
+	ans := make([]ProxyHttpHeader, 0, len(v))
+	for k, vs := range v {
+		for _, v := range vs {
+			ans = append(ans, ProxyHttpHeader{
+				Name:  k,
+				Value: v,
+			})
+		}
+	}
+	return ans
+}
+
+func ToHttpRequestHeaders(v []ProxyHttpHeader) map[string][]string {
+	ans := make(map[string][]string)
+	for _, h := range v {
+		ans[h.Name] = append(ans[h.Name], h.Value)
+	}
+	return ans
+}

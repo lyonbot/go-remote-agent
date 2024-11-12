@@ -15,10 +15,12 @@ func ReaderToChannel(ch chan<- []byte, r io.Reader) {
 	for {
 		buf := make([]byte, 1024)
 		n, err := (r).Read(buf)
+		if n > 0 {
+			ch <- buf[:n]
+		}
 		if err != nil {
 			break
 		}
-		ch <- buf[:n]
 	}
 }
 

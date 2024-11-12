@@ -50,7 +50,7 @@ func Run(task *biz.AgentNotify) {
 
 	session.SetupPty()
 	session.SetupFileTransfer()
-	session.SetupTcpProxy()
+	session.SetupProxy()
 
 	session.Run()
 	cancel()

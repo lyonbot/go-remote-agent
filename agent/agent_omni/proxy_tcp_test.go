@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
-	"log"
 	"net"
 	"remote-agent/utils"
 	"sync"
@@ -14,7 +13,7 @@ import (
 	"time"
 )
 
-func TestAgentPtyTcp(t *testing.T) {
+func TestProxyTcp(t *testing.T) {
 	echoServer, err := startEchoTcpServer()
 	if err != nil {
 		t.Fatalf("failed to start echo server: %v", err)
@@ -27,7 +26,7 @@ func TestAgentPtyTcp(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		session.SetupTcpProxy()
+		session.SetupProxy()
 		session.Run()
 	}()
 
@@ -134,7 +133,7 @@ func startEchoTcpServer() (server *MockServer, err error) {
 			})
 		},
 	}
-	log.Println("echoServer start listening on", server.Port)
+	// log.Println("echoServer start listening on", server.Port)
 
 	wg.Add(1)
 	go func() {
@@ -158,21 +157,10 @@ func startEchoTcpServer() (server *MockServer, err error) {
 				conns.Store(key, conn)
 				defer conns.Delete(key)
 
-				defer log.Println("echoServer disconnected from", key)
-				log.Println("echoServer accepted tcp connection from", key)
+				// defer log.Println("echoServer disconnected from", key)
+				// log.Println("echoServer accepted tcp connection from", key)
 
 				io.Copy(conn, conn)
-				// for {
-				// 	data := make([]byte, 4096)
-				// 	n, err := conn.Read(data)
-				// 	if err != nil {
-				// 		return
-				// 	}
-
-				// 	if _, err := conn.Write(data[:n]); err != nil {
-				// 		return
-				// 	}
-				// }
 			}()
 		}
 	}()
