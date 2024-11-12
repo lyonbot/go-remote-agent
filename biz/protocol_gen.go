@@ -916,6 +916,12 @@ func (z *ProxyHttpResponse) DecodeMsg(dc *msgp.Reader) (err error) {
 					}
 				}
 			}
+		case "is_websocket":
+			z.IsWebSocket, err = dc.ReadBool()
+			if err != nil {
+				err = msgp.WrapError(err, "IsWebSocket")
+				return
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -929,9 +935,9 @@ func (z *ProxyHttpResponse) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *ProxyHttpResponse) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 3
+	// map header, size 4
 	// write "connection_error"
-	err = en.Append(0x83, 0xb0, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72)
+	err = en.Append(0x84, 0xb0, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72)
 	if err != nil {
 		return
 	}
@@ -983,15 +989,25 @@ func (z *ProxyHttpResponse) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	}
+	// write "is_websocket"
+	err = en.Append(0xac, 0x69, 0x73, 0x5f, 0x77, 0x65, 0x62, 0x73, 0x6f, 0x63, 0x6b, 0x65, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteBool(z.IsWebSocket)
+	if err != nil {
+		err = msgp.WrapError(err, "IsWebSocket")
+		return
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *ProxyHttpResponse) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 3
+	// map header, size 4
 	// string "connection_error"
-	o = append(o, 0x83, 0xb0, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72)
+	o = append(o, 0x84, 0xb0, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72)
 	o = msgp.AppendString(o, z.ConnectionError)
 	// string "status_code"
 	o = append(o, 0xab, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64, 0x65)
@@ -1008,6 +1024,9 @@ func (z *ProxyHttpResponse) MarshalMsg(b []byte) (o []byte, err error) {
 		o = append(o, 0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
 		o = msgp.AppendString(o, z.Headers[za0001].Value)
 	}
+	// string "is_websocket"
+	o = append(o, 0xac, 0x69, 0x73, 0x5f, 0x77, 0x65, 0x62, 0x73, 0x6f, 0x63, 0x6b, 0x65, 0x74)
+	o = msgp.AppendBool(o, z.IsWebSocket)
 	return
 }
 
@@ -1089,6 +1108,12 @@ func (z *ProxyHttpResponse) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					}
 				}
 			}
+		case "is_websocket":
+			z.IsWebSocket, bts, err = msgp.ReadBoolBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "IsWebSocket")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -1107,6 +1132,7 @@ func (z *ProxyHttpResponse) Msgsize() (s int) {
 	for za0001 := range z.Headers {
 		s += 1 + 5 + msgp.StringPrefixSize + len(z.Headers[za0001].Name) + 6 + msgp.StringPrefixSize + len(z.Headers[za0001].Value)
 	}
+	s += 13 + msgp.BoolSize
 	return
 }
 

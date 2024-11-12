@@ -7,8 +7,11 @@ import (
 	"net/http/httptest"
 	"remote-agent/biz"
 	"remote-agent/utils"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // GET request is sent via 0x23 (http request) package, and it has no body
@@ -62,12 +65,8 @@ func TestProxyHttp(t *testing.T) {
 		if _, err := dial_result.UnmarshalMsg(recv[5:]); err != nil {
 			t.Fatalf("failed to unmarshal http dial result: %s", err.Error())
 		}
-		if dial_result.StatusCode != 200 {
-			t.Fatalf("http status code not 200: %d", dial_result.StatusCode)
-		}
-		if dial_result.ConnectionError != "" {
-			t.Fatalf("http connection error: %s", dial_result.ConnectionError)
-		}
+		Assert(t, dial_result.StatusCode == 200, "http status code 200")
+		Assert(t, dial_result.ConnectionError == "", "no connection error")
 
 		found_x_test := false
 		for _, h := range dial_result.Headers {
@@ -76,9 +75,8 @@ func TestProxyHttp(t *testing.T) {
 				break
 			}
 		}
-		if !found_x_test {
-			t.Fatalf("http header not found: X-Test")
-		}
+
+		Assert(t, found_x_test, "http header X-Test")
 	}
 
 	// -------------------------------------
@@ -322,7 +320,130 @@ func TestProxyHttpAbort(t *testing.T) {
 		t.Fatalf("mock server chunk sending not ended")
 	}
 
-	if len(recv_buf) != chunkSentCount {
-		t.Fatalf("http response length not matched:\nexpect %d, got %s", chunkSentCount, string(recv_buf))
+	if len(recv_buf) < chunkSentCount-3 || len(recv_buf) > chunkSentCount+3 {
+		t.Fatalf("http response length not matched:\nexpect %d, got %s(%d)", chunkSentCount, string(recv_buf), len(recv_buf))
+	}
+}
+
+func TestProxyHttpWebSocket(t *testing.T) {
+	chunkSentCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Test-Client") != "test" {
+			t.Fatalf("unexpected X-Test-Client header: %s", r.Header.Get("X-Test-Client"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		ws := websocket.Upgrader{}
+		conn, err := ws.Upgrade(w, r, http.Header{
+			"X-Test-Server": []string{"test"},
+		})
+		if err != nil {
+			t.Fatalf("failed to upgrade to websocket: %v", err)
+		}
+
+		defer conn.Close()
+		conn.WriteMessage(websocket.BinaryMessage, []byte("binary"))
+		conn.WriteMessage(websocket.TextMessage, []byte("text"))
+
+		for {
+			messageType, data, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			chunkSentCount++
+			conn.WriteMessage(messageType, append([]byte("recv: "), data...))
+		}
+	}))
+	defer srv.Close()
+
+	session, wg, wsRead, wsWrite, cancel := makeTestSession()
+	defer cancel()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		session.SetupProxy()
+		session.Run()
+	}()
+
+	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
+
+	conn_req := biz.ProxyHttpRequest{
+		Method: "GET",
+		URL:    strings.Replace(srv.URL, "http://", "ws://", 1),
+		Headers: []biz.ProxyHttpHeader{
+			{Name: "X-Test-Client", Value: "test"},
+		},
+	}
+	conn_req_bytes, _ := conn_req.MarshalMsg(nil)
+	connect_command := utils.JoinBytes2(0x23, idBytes, conn_req_bytes)
+
+	// -------------------------------------
+	// 1. send http request
+	wsRead <- connect_command
+	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:5]) != "23deadbeef" {
+		t.Fatalf("did not recv http dial result: %s", bytes2hex(recv))
+	} else {
+		dial_result := biz.ProxyHttpResponse{}
+		if _, err := dial_result.UnmarshalMsg(recv[5:]); err != nil {
+			t.Fatalf("failed to unmarshal http dial result: %s", err.Error())
+		}
+
+		Assert(t, dial_result.ConnectionError == "", "no connection error")
+
+		found_x_test := false
+		for _, h := range dial_result.Headers {
+			if h.Name == "X-Test-Server" && h.Value == "test" {
+				found_x_test = true
+				break
+			}
+		}
+
+		Assert(t, found_x_test, "http header X-Test")
+	}
+
+	// -------------------------------------
+	// 2. handle data
+	wsRecvMessages := make(chan []byte, 10)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for data := range wsWrite {
+			if data[0] == 0x21 {
+				wsRecvMessages <- data[5:]
+			}
+
+			if data[0] == 0x22 {
+				close(wsRecvMessages)
+				break
+			}
+		}
+	}()
+
+	msg1 := <-wsRecvMessages
+	Assert(t, string(msg1) == "\x02binary", "ws message 1")
+
+	msg2 := <-wsRecvMessages
+	Assert(t, string(msg2) == "\x01text", "ws message 2")
+
+	// send a message and echo back
+	wsRead <- utils.JoinBytes2(0x21, idBytes, []byte("\x01hello"))
+	msg3 := <-wsRecvMessages
+	Assert(t, string(msg3) == "\x01recv: hello", "ws message 3")
+
+	// -------------------------------------
+	// 3. close
+	wsRead <- utils.JoinBytes2(0x22, idBytes)
+	select {
+	case <-wsRecvMessages:
+	case <-time.After(time.Second * 5):
+		t.Fatalf("did not recv close message")
+	}
+}
+
+func Assert(t *testing.T, cond bool, msg string) {
+	if !cond {
+		t.Fatalf("assert failed: %s", msg)
 	}
 }

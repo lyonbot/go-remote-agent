@@ -240,13 +240,9 @@ func (s *PtySession) SetupProxy() {
 					defer stop()
 
 					// ---- ready for data transfer
+					dial_result.IsWebSocket = true
 					dial_result.StatusCode = int32(resp.StatusCode)
-					for h := range resp.Header {
-						dial_result.Headers = append(dial_result.Headers, biz.ProxyHttpHeader{
-							Name:  h,
-							Value: resp.Header.Get(h),
-						})
-					}
+					dial_result.Headers = biz.FromHttpRequestHeaders(resp.Header)
 					send_dial_result()
 
 					// ---- continuous send to user
@@ -260,7 +256,7 @@ func (s *PtySession) SetupProxy() {
 						if err != nil {
 							return
 						}
-						s.Write(utils.JoinBytes2(0x24, idBytes, []byte{uint8(messageType)}, data))
+						s.Write(utils.JoinBytes2(0x21, idBytes, []byte{uint8(messageType)}, data))
 					}
 				}()
 			}

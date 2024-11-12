@@ -40,6 +40,7 @@ type ProxyHttpResponse struct {
 	ConnectionError string            `msg:"connection_error"`
 	StatusCode      int32             `msg:"status_code"`
 	Headers         []ProxyHttpHeader `msg:"headers"`
+	IsWebSocket     bool              `msg:"is_websocket"`
 }
 
 type ProxyHttpHeader struct {
