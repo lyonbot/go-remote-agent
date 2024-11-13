@@ -43,10 +43,10 @@ Alpine.data('the_app', function () {
     proxyList: [],
     proxyCreate: {
       host: "",
-      agentName: "",
-      agentId: "",
+      agent_name: "",
+      agent_id: "",
       target: "",
-      replaceHost: "",
+      replace_host: "",
     },
     initProxy() {
       this.loadProxyList()
@@ -78,15 +78,17 @@ Alpine.data('the_app', function () {
         alert('host is empty')
         return
       }
+
+      var body = new FormData()
+      body.append('agent_name', this.proxyCreate.agent_name)
+      body.append('agent_id', this.proxyCreate.agent_id)
+      body.append('target', this.proxyCreate.target)
+      body.append('replace_host', this.proxyCreate.replace_host)
+
       fetch(`./api/proxy/${encodeURIComponent(this.proxyCreate.host)}/`, {
         method: 'POST',
         headers: { 'X-API-Key': this.api_key },
-        body: JSON.stringify({
-          target: this.proxyCreate.target,
-          agentName: this.proxyCreate.agentName,
-          agentId: this.proxyCreate.agentId,
-          replaceHost: this.proxyCreate.replaceHost,
-        }),
+        body,
       })
         .then(res => res.json())
         .then(r => {
@@ -98,7 +100,7 @@ Alpine.data('the_app', function () {
       var t = this.proxyCreate.target.trim()
       var tSplit = t.split('/')
       t = tSplit[2] || tSplit[0]
-      this.proxyCreate.replaceHost = t
+      this.proxyCreate.replace_host = t
     },
 
 
@@ -166,7 +168,7 @@ Alpine.data('the_app', function () {
       window.term = term
       window.addEventListener('resize', debounce(() => fitAddon.fit(), 500))
 
-      const url = `./api/agent/${agent_name}/pty/?api_key=${encodeURIComponent(this.api_key)}`;
+      const url = `./api/agent/${agent_name}/omni/?api_key=${encodeURIComponent(this.api_key)}`;
       ws = new WebSocket(url);
 
       ws.onopen = () => {

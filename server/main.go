@@ -23,7 +23,7 @@ func RunServer() {
 	mux_client.HandleFunc("/api/agent/", client_handler.HandleClientListAll)
 	mux_client.HandleFunc("/api/agent/{agent_name}/", client_handler.HandleClientListAgent)
 	mux_client.HandleFunc("/api/agent/{agent_name}/exec/", client_handler.HandleClientExec)
-	mux_client.HandleFunc("/api/agent/{agent_name}/pty/", client_handler.HandleClientPty)
+	mux_client.HandleFunc("/api/agent/{agent_name}/omni/", client_handler.HandleClientPty)
 	mux_client.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
 	mux_client.HandleFunc("/api/proxy/", client_handler.HandleProxyListAll)
 	mux_client.HandleFunc("/api/proxy/{host}/", client_handler.HandleProxyEdit)

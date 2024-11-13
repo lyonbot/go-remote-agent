@@ -30,35 +30,44 @@ func HandleProxyEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
-
 	host := r.PathValue("host")
 	if !strings.Contains(host, ".") {
 		hostTpl := biz.Config.ProxyServerHost
 		host = strings.Replace(hostTpl, "*", host, -1)
 		if host == hostTpl {
-			err = errors.New("invalid host or bad proxy_server_host config")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid host, maybe proxy_server_host is not configured"})
+			return
 		}
 	}
+	var err error
 
 	switch r.Method {
 	case http.MethodPost:
-		srv := proxy.Service{}
-		if err == nil {
-			err = json.NewDecoder(r.Body).Decode(&srv)
-		}
-		if err == nil {
+		err = func() error {
+			srv := proxy.Service{
+				Host:        host,
+				AgentName:   r.PostFormValue("agent_name"),
+				AgentId:     r.PostFormValue("agent_id"),
+				Target:      r.PostFormValue("target"),
+				ReplaceHost: r.PostFormValue("replace_host"),
+			}
+
 			srv.Target = strings.TrimSpace(srv.Target)
 			if srv.Target == "" {
-				err = errors.New("target is required")
-			} else if !strings.HasPrefix(srv.Target, "http://") && !strings.HasPrefix(srv.Target, "https://") {
+				return errors.New("target is required")
+			}
+			if !strings.HasPrefix(srv.Target, "http://") && !strings.HasPrefix(srv.Target, "https://") {
 				srv.Target = "http://" + srv.Target
 			}
-		}
-		if err == nil {
-			srv.Host = host
-			err = proxy.RegisterService(srv)
-		}
+
+			if srv.AgentId == "" && srv.AgentName == "" {
+				return errors.New("agent_id or agent_name is required")
+			}
+
+			return proxy.RegisterService(srv)
+		}()
 	case http.MethodDelete:
 		err = proxy.KillService(host)
 	default:

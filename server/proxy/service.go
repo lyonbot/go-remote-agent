@@ -21,11 +21,11 @@ import (
 
 type Service struct {
 	Host      string `json:"host"`
-	AgentName string `json:"agentName"`
-	AgentId   string `json:"agentId"`
+	AgentName string `json:"agent_name"`
+	AgentId   string `json:"agent_id"`
 
 	Target      string `json:"target"`
-	ReplaceHost string `json:"replaceHost"`
+	ReplaceHost string `json:"replace_host"`
 
 	ctx    context.Context
 	cancel context.CancelFunc

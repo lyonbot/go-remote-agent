@@ -96,7 +96,19 @@ You can put query parameters:
 
 ### GET /api/proxy/
 
-List all proxy services.
+List all proxy services. Returns a JSON array like :
+
+```json
+[
+  {
+    "host": "foobar.proxy.my-site.com",
+    "target": "http://127.0.0.1:8080",
+    "agent_name": "my-agent",
+    "agent_id": "1234567890",
+    "replace_host": "localhost:8080",
+  }
+]
+```
 
 ### POST /api/proxy/:host/
 
@@ -105,7 +117,7 @@ Create a proxy service. The payload is a FormData:
 - `host`: domain for this proxy service
 - `agent_id` or `agent_name`: agent instance id or name
 - `target`: address like `http://127.0.0.1:8080`
-- `replaceHost`: optional string, force replace request host. defaults to `target`'s
+- `replace_host`: optional string, force replace request host. defaults to `target`'s
 
 ### DELETE /api/proxy/:host/
 

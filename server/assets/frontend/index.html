@@ -60,13 +60,13 @@
                 <summary>PTY</summary>
                 <div class="gridForm">
                   <label for="ptyCmd">Cmd:</label>
-                  <input id="ptyCmd" x-model="pty_cmd">
+                  <input id="ptyCmd" x-model="pty_cmd" />
                   <label for="ptyArgs">Args:</label>
                   <textarea id="ptyArgs" rows="3" x-model="pty_args" placeholder="one per line"></textarea>
                   <label for="ptyEnv">Env:</label>
                   <textarea id="ptyEnv" rows="3" x-model="pty_env" placeholder="FOO=bar"></textarea>
                   <div></div>
-                  <label><input type="checkbox" x-model="pty_inherit_env">Inherit Env</label>
+                  <label><input type="checkbox" x-model="pty_inherit_env" />Inherit Env</label>
                 </div>
               </details>
             </div>
@@ -79,32 +79,52 @@
               Proxy
               <button x-on:click="loadProxyList()">Reload</button>
             </h2>
-            <ul>
+            <div class="gridForm" style="margin-bottom: 1em;">
               <template x-for="p in proxyList" :key="p.host">
-                <li>
-                  <a x-bind:href="'//' + p.host" target="_blank" x-text="p.host"></a>
-                  ->
-                  <span x-text="p.target"></span>
+                <div style="display: contents">
+                  <div style="white-space: nowrap;">
+                    <button x-on:click="deleteProxy(p.host)">❌ Delete</button>
+                    <button x-on:click="proxyCreate={...p}">Clone</button>
+                  </div>
+                  <div>
+                    - 
+                    <a x-bind:href="'//' + p.host" target="_blank" x-text="p.host"></a>
+                    --[
+                    <span x-text="p.agent_id && `(${p.agent_id})`"></span>
+                    <span x-text="p.agent_name"></span>
+                    ]--&gt;
+                    <a x-bind:href="p.target" target="_blank" x-text="p.target"></a>
+                  </div>
+                </div>
+              </template>
+            </div>
 
-                  <button x-on:click="proxyCreate={...p}">Clone</button>
-                  <button x-on:click="deleteProxy(p.host)">Delete</button>
-                </li>
-              </template> 
-            </ul>
-            
             <details>
               <summary>Create Proxy</summary>
               <div class="gridForm">
                 <label for="proxyCreateHost">host:</label>
-                <input id="proxyCreateHost" x-model="proxyCreate.host" placeholder="eg. foobar OR foobar.proxy.my-site.com">
+                <input
+                  id="proxyCreateHost"
+                  x-model="proxyCreate.host"
+                  placeholder="eg. foobar OR foobar.proxy.my-site.com"
+                />
                 <label for="proxyCreateTarget">target:</label>
-                <input id="proxyCreateTarget" x-model="proxyCreate.target" placeholder="eg. http://xxx OR 127.0.0.1:8080" x-on:input="proxyAutoGuessReplaceHost">
+                <input
+                  id="proxyCreateTarget"
+                  x-model="proxyCreate.target"
+                  placeholder="eg. http://xxx OR 127.0.0.1:8080"
+                  x-on:input="proxyAutoGuessReplaceHost"
+                />
                 <label for="proxyCreateAgentName">agentName:</label>
-                <input id="proxyCreateAgentName" x-model="proxyCreate.agentName">
+                <input id="proxyCreateAgentName" x-model="proxyCreate.agent_name" />
                 <label for="proxyCreateAgentId">agentId:</label>
-                <input id="proxyCreateAgentId" x-model="proxyCreate.agentId">
+                <input id="proxyCreateAgentId" x-model="proxyCreate.agent_id" />
                 <label for="proxyCreateReplaceHost">replaceHost:</label>
-                <input id="proxyCreateReplaceHost" x-model="proxyCreate.replaceHost" placeholder="eg. localhost:8080">
+                <input
+                  id="proxyCreateReplaceHost"
+                  x-model="proxyCreate.replace_host"
+                  placeholder="eg. localhost:8080"
+                />
 
                 <div>
                   <button x-on:click="createProxy()">Create</button>
