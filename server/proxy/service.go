@@ -102,13 +102,14 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 		if !isWebSocket && r.Body != nil {
 			if r.ContentLength > 0 {
 				body = make([]byte, r.ContentLength)
-				_, err = r.Body.Read(body)
+				if n, err := r.Body.Read(body); err != nil && int64(n) != r.ContentLength {
+					return nil, err
+				}
 			} else {
 				body, err = io.ReadAll(r.Body)
-			}
-
-			if err != nil {
-				return nil, err
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 

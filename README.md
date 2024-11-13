@@ -114,7 +114,7 @@ List all proxy services. Returns a JSON array like :
 
 Create a proxy service. The payload is a FormData:
 
-- `host`: domain for this proxy service
+- `host`: domain like `foobar.proxy.my-site.com`, or just a name like `foobar` (if `proxy_server_host` is configured)
 - `agent_id` or `agent_name`: agent instance id or name
 - `target`: address like `http://127.0.0.1:8080`
 - `replace_host`: optional string, force replace request host. defaults to `target`'s
@@ -136,25 +136,53 @@ API client may pass API key in one of these ways:
 
 ## Proxy Host
 
-(Only works on `Server`)
-
-Server may act like a ngrok. You can provide a host pattern like `*.proxy.my-site.com` via `proxy_server_host` in the config file, or via `-psh` command line.
+Server may act like a ngrok. You can create proxy services, and server will forward HTTP requests on the certain host, through the agent, to the target.
 
 ```
-+------+    xxx.proxy.my-site.com   +----------+    "omni" session    +---------+
-| User | -------------------------> |  Server  | -------------------> |  Agent  |
-+------+                            +----------+                      +---------+
+    xxx.proxy.my-site.com      "omni" session     http/https
+User ------------------> Server -----------> Agent -------> Target
 ```
 
-Once a proxy channel is created by user, the server will create "omni" session to agent, and forward user requests via it.
+You can use `/api/proxy/` API to create proxy services.
+
+To make it convenient, you can configure a host pattern like `*.proxy.my-site.com` via `proxy_server_host` in the config file, or via `-psh` command line. Then when create proxy service, the `host` field can be just a name like `foobar`.
+
+You can use nginx to proxy requests to the server. Assuming the server is running on `127.0.0.1:8080`, you can do this in Nginx or Apache:
+
+```
+# nginx
+server {
+    listen 80;
+    server_name *.proxy.my-site.com;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+    }
+}
+```
+
+```
+# apache
+<VirtualHost *:443>
+  ServerName x.proxy.my-site.com
+  ServerAlias *.proxy.my-site.com
+  DocumentRoot /var/www/html/
+  ProxyRequests off
+  ProxyPass / http://127.0.0.1:8080/  retry=0
+  ProxyPreserveHost On
+
+  # Include /your/ssl/config.conf
+</VirtualHost>
+```
 
 ## "omni" session protocol
 
-In a "omni" session, you can:
+Server may manipulate agents via "omni" session:
 
 - start a pty shell session on agent.
 - upload / download files.
-- proxy TCP connections via agent.
+- proxy TCP / HTTP / WebSocket connections via agent.
+
+A "omni" session is based on WebSocket. All messages are binary.
 
 ### common features
 
@@ -265,7 +293,9 @@ A->S
 - `0x02 <data>` - stderr
 - `0x03 <message_str>` - debug message
 
-#### "omni" session
+#### "omni" / "pty" session
+
+For legacy reasons, the "omni" session is also called "pty"
 
 See ["omni" session protocol](#omni-session-protocol).
 
