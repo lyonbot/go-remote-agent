@@ -4,6 +4,15 @@ body {
   min-height: 100vh;
 }
 
+.gridForm {
+  display: grid;
+  grid-template-columns: minmax(50px, min-content) 1fr;
+  gap: 2px;
+}
+.gridForm > :last-child {
+  grid-column: 2;
+}
+
 #initForm, #proxyForm {
   padding: 2em;
 }
@@ -12,12 +21,6 @@ body {
   border: 1px solid #ccc;
   padding: 1em;
   margin-bottom: 1em;
-}
-
-#ptyConnOptions textarea,
-#ptyConnOptions input[type="text"] {
-  width: 200px;
-  box-sizing: border-box;
 }
 
 #ptyApp {

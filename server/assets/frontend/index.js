@@ -73,7 +73,7 @@ Alpine.data('the_app', function () {
           this.loadProxyList()
         })
     },
-    addProxy() {
+    createProxy() {
       if (!this.proxyCreate.host) {
         alert('host is empty')
         return
@@ -93,6 +93,12 @@ Alpine.data('the_app', function () {
           if (r.error) alert('ERROR: ' + r.error)
           this.loadProxyList()
         })
+    },
+    proxyAutoGuessReplaceHost() {
+      var t = this.proxyCreate.target.trim()
+      var tSplit = t.split('/')
+      t = tSplit[2] || tSplit[0]
+      this.proxyCreate.replaceHost = t
     },
 
 

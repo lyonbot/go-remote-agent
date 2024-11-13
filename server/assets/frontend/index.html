@@ -58,28 +58,16 @@
 
               <details id="ptyConnOptions">
                 <summary>PTY</summary>
-                <table border="0">
-                  <tr>
-                    <td>Cmd:</td>
-                    <td><input type="text" x-model="pty_cmd" /></td>
-                  </tr>
-                  <tr>
-                    <td>Args:</td>
-                    <td><textarea rows="3" type="text" x-model="pty_args" placeholder="one per line"></textarea></td>
-                  </tr>
-                  <tr>
-                    <td>Env:</td>
-                    <td>
-                      <textarea rows="3" type="text" x-model="pty_env" placeholder="FOO=bar"></textarea>
-                      <div>
-                        <label>
-                          <input type="checkbox" x-model="pty_inherit_env" />
-                          Inherit Env
-                        </label>
-                      </div>
-                    </td>
-                  </tr>
-                </table>
+                <div class="gridForm">
+                  <label for="ptyCmd">Cmd:</label>
+                  <input id="ptyCmd" x-model="pty_cmd">
+                  <label for="ptyArgs">Args:</label>
+                  <textarea id="ptyArgs" rows="3" x-model="pty_args" placeholder="one per line"></textarea>
+                  <label for="ptyEnv">Env:</label>
+                  <textarea id="ptyEnv" rows="3" x-model="pty_env" placeholder="FOO=bar"></textarea>
+                  <div></div>
+                  <label><input type="checkbox" x-model="pty_inherit_env">Inherit Env</label>
+                </div>
               </details>
             </div>
           </form>
@@ -94,10 +82,11 @@
             <ul>
               <template x-for="p in proxyList" :key="p.host">
                 <li>
-                  <span x-text="p.host"></span>
+                  <a x-bind:href="'//' + p.host" target="_blank" x-text="p.host"></a>
                   ->
                   <span x-text="p.target"></span>
 
+                  <button x-on:click="proxyCreate={...p}">Clone</button>
                   <button x-on:click="deleteProxy(p.host)">Delete</button>
                 </li>
               </template> 
@@ -105,12 +94,22 @@
             
             <details>
               <summary>Create Proxy</summary>
-              <p>host: <input x-model="proxyCreate.host"></p>
-              <p>target: <input x-model="proxyCreate.target" placeholder="eg. http://xxx"></p>
-              <p>agentName: <input x-model="proxyCreate.agentName"></p>
-              <p>agentId: <input x-model="proxyCreate.agentId"></p>
-              <p>replaceHost: <input x-model="proxyCreate.replaceHost" placeholder="eg. localhost:8080"></p>
-              <button x-on:click="addProxy()">Add</button>
+              <div class="gridForm">
+                <label for="proxyCreateHost">host:</label>
+                <input id="proxyCreateHost" x-model="proxyCreate.host" placeholder="eg. foobar OR foobar.proxy.my-site.com">
+                <label for="proxyCreateTarget">target:</label>
+                <input id="proxyCreateTarget" x-model="proxyCreate.target" placeholder="eg. http://xxx OR 127.0.0.1:8080" x-on:input="proxyAutoGuessReplaceHost">
+                <label for="proxyCreateAgentName">agentName:</label>
+                <input id="proxyCreateAgentName" x-model="proxyCreate.agentName">
+                <label for="proxyCreateAgentId">agentId:</label>
+                <input id="proxyCreateAgentId" x-model="proxyCreate.agentId">
+                <label for="proxyCreateReplaceHost">replaceHost:</label>
+                <input id="proxyCreateReplaceHost" x-model="proxyCreate.replaceHost" placeholder="eg. localhost:8080">
+
+                <div>
+                  <button x-on:click="createProxy()">Create</button>
+                </div>
+              </div>
             </details>
           </div>
         </template>
