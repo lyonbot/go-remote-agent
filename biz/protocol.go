@@ -33,6 +33,7 @@ type ProxyHttpRequest struct {
 	Method  string            `msg:"method"`
 	URL     string            `msg:"url"`
 	Headers []ProxyHttpHeader `msg:"headers"`
+	Host    string            `msg:"host"` // golang http client will use this field to replace Host header
 	Body    []byte            `msg:"body"` // beware: disallowed for ws:// or wss://
 }
 

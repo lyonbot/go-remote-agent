@@ -618,6 +618,12 @@ func (z *ProxyHttpRequest) DecodeMsg(dc *msgp.Reader) (err error) {
 					}
 				}
 			}
+		case "host":
+			z.Host, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Host")
+				return
+			}
 		case "body":
 			z.Body, err = dc.ReadBytes(z.Body)
 			if err != nil {
@@ -637,9 +643,9 @@ func (z *ProxyHttpRequest) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *ProxyHttpRequest) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 4
+	// map header, size 5
 	// write "method"
-	err = en.Append(0x84, 0xa6, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64)
+	err = en.Append(0x85, 0xa6, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64)
 	if err != nil {
 		return
 	}
@@ -691,6 +697,16 @@ func (z *ProxyHttpRequest) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	}
+	// write "host"
+	err = en.Append(0xa4, 0x68, 0x6f, 0x73, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Host)
+	if err != nil {
+		err = msgp.WrapError(err, "Host")
+		return
+	}
 	// write "body"
 	err = en.Append(0xa4, 0x62, 0x6f, 0x64, 0x79)
 	if err != nil {
@@ -707,9 +723,9 @@ func (z *ProxyHttpRequest) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *ProxyHttpRequest) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 4
+	// map header, size 5
 	// string "method"
-	o = append(o, 0x84, 0xa6, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64)
+	o = append(o, 0x85, 0xa6, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64)
 	o = msgp.AppendString(o, z.Method)
 	// string "url"
 	o = append(o, 0xa3, 0x75, 0x72, 0x6c)
@@ -726,6 +742,9 @@ func (z *ProxyHttpRequest) MarshalMsg(b []byte) (o []byte, err error) {
 		o = append(o, 0xa5, 0x76, 0x61, 0x6c, 0x75, 0x65)
 		o = msgp.AppendString(o, z.Headers[za0001].Value)
 	}
+	// string "host"
+	o = append(o, 0xa4, 0x68, 0x6f, 0x73, 0x74)
+	o = msgp.AppendString(o, z.Host)
 	// string "body"
 	o = append(o, 0xa4, 0x62, 0x6f, 0x64, 0x79)
 	o = msgp.AppendBytes(o, z.Body)
@@ -810,6 +829,12 @@ func (z *ProxyHttpRequest) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					}
 				}
 			}
+		case "host":
+			z.Host, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Host")
+				return
+			}
 		case "body":
 			z.Body, bts, err = msgp.ReadBytesBytes(bts, z.Body)
 			if err != nil {
@@ -834,7 +859,7 @@ func (z *ProxyHttpRequest) Msgsize() (s int) {
 	for za0001 := range z.Headers {
 		s += 1 + 5 + msgp.StringPrefixSize + len(z.Headers[za0001].Name) + 6 + msgp.StringPrefixSize + len(z.Headers[za0001].Value)
 	}
-	s += 5 + msgp.BytesPrefixSize + len(z.Body)
+	s += 5 + msgp.StringPrefixSize + len(z.Host) + 5 + msgp.BytesPrefixSize + len(z.Body)
 	return
 }
 

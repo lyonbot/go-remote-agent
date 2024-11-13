@@ -1,5 +1,5 @@
 '''
-curl -X POST http://127.0.0.1:8080/api/proxy/foobar.com/ -F "agent_name=bot1" -F "target=http://127.0.0.1:8000" -F "replace_host=localhost:8000"
+curl -X POST http://127.0.0.1:8080/api/proxy/foobar.com/ -F "agent_name=bot1" -F "target=http://127.0.0.1:8000" -F "replace_host=foobar.com"
 curl -X POST http://127.0.0.1:8080/ -H "Host: foobar.com" -d 'hello world' -v
 '''
 
@@ -15,7 +15,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
         
-        response = 'recv: ' + post_data
+        response = self.headers['Host'] + ' recv: ' + post_data
         
         self.wfile.write(response.encode('utf-8'))
 

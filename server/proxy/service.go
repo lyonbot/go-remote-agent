@@ -81,22 +81,6 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		headers := biz.FromHttpRequestHeaders(r.Header)
-		if s.ReplaceHost != "" {
-			replaced := false
-			for i, h := range headers {
-				if h.Name == "Host" {
-					headers[i].Value = s.ReplaceHost
-					replaced = true
-					break
-				}
-			}
-			if !replaced {
-				headers = append(headers, biz.ProxyHttpHeader{
-					Name:  "Host",
-					Value: s.ReplaceHost,
-				})
-			}
-		}
 
 		var body []byte
 		if !isWebSocket && r.Body != nil {
@@ -117,6 +101,7 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 			Method:  r.Method,
 			URL:     url,
 			Headers: headers,
+			Host:    s.ReplaceHost,
 			Body:    body,
 		}
 		return bizRequest, nil

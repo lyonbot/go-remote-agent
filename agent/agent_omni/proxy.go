@@ -195,6 +195,13 @@ func (s *PtySession) SetupProxy() {
 					},
 				}
 
+				if req.Host != "" {
+					// see https://github.com/gorilla/websocket/commit/6fd0f867fef40c540fa05c59f86396de10a632a6#diff-4b667feae66c9d46b21b9ecc19e8958cf4472d162ce0a47ac3e8386af8bbd8cfR234
+					req.Headers = append(req.Headers, biz.ProxyHttpHeader{
+						Name:  "Host",
+						Value: req.Host,
+					})
+				}
 				conn, resp, err := dialer.Dial(req.URL, biz.ToHttpRequestHeaders(req.Headers))
 				if err != nil {
 					dial_result.ConnectionError = "connect error: " + err.Error()
@@ -302,6 +309,7 @@ func (s *PtySession) SetupProxy() {
 					}()
 				}
 
+				httpReq.Host = req.Host
 				httpReq.Header = biz.ToHttpRequestHeaders(req.Headers)
 				httpRes, err := http.DefaultClient.Do(httpReq)
 				if err != nil {
