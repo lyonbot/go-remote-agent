@@ -1,3 +1,8 @@
 # agent: true
 name: bot1
 base_url: http://localhost:8080
+proxy_services:
+  - host: foobar.com
+    replace_host: foobar.com
+    agent_name: bot1
+    target: http://127.0.0.1:8765

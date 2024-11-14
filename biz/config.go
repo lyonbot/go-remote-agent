@@ -14,14 +14,23 @@ type AgentConfig struct {
 	AsAgent bool   `yaml:"as_agent"` // true for agent
 
 	// for server
-	Addr            string // listen address, defaults to "0.0.0.0"
-	Port            int32  // listen port, defaults to 8080
-	APIKey          string `yaml:"api_key"`           // API key for client API. If set, must provided via `X-API-Key` header or `Authorization: Bearer <api_key>` header
-	ProxyServerHost string `yaml:"proxy_server_host"` // like `foo-*.your-domain.com`. must contain `*`
+	Addr            string             // listen address, defaults to "0.0.0.0"
+	Port            int32              // listen port, defaults to 8080
+	APIKey          string             `yaml:"api_key"`           // API key for client API. If set, must provided via `X-API-Key` header or `Authorization: Bearer <api_key>` header
+	ProxyServerHost string             `yaml:"proxy_server_host"` // like `foo-*.your-domain.com`. must contain `*`
+	ProxyServices   []SavedProxyConfig `yaml:"proxy_services"`
 
 	// for agent
 	BaseUrl  string `yaml:"base_url"` // base url, including protocol and port, without `/api`
 	Insecure bool
+}
+
+type SavedProxyConfig struct {
+	Host      string `yaml:"host"`
+	AgentName string `yaml:"agent_name"`
+	// AgentId   string `yaml:"agent_id"`		// not supported -- id may change
+	Target      string `yaml:"target"`
+	ReplaceHost string `yaml:"replace_host"`
 }
 
 var Config AgentConfig

@@ -105,7 +105,7 @@ List all proxy services. Returns a JSON array like :
     "target": "http://127.0.0.1:8080",
     "agent_name": "my-agent",
     "agent_id": "1234567890",
-    "replace_host": "localhost:8080",
+    "replace_host": "localhost:8080"
   }
 ]
 ```
@@ -147,6 +147,17 @@ You can use `/api/proxy/` API to create proxy services.
 
 To make it convenient, you can configure a host pattern like `*.proxy.my-site.com` via `proxy_server_host` in the config file, or via `-psh` command line. Then when create proxy service, the `host` field can be just a name like `foobar`.
 
+In config file, you can also provide `proxy_services` so server will automatically register proxy services when starts.
+
+```yaml
+# in config.yaml
+proxy_services:
+  - host: foobar.proxy.my-site.com      # must be complete host name
+    replace_host: foobar.my-site.com
+    agent_name: bot1
+    target: http://127.0.0.1:8765
+```
+
 You can use nginx to proxy requests to the server. Assuming the server is running on `127.0.0.1:8080`, you can do this in Nginx or Apache:
 
 ```
@@ -166,8 +177,12 @@ server {
   ServerName x.proxy.my-site.com
   ServerAlias *.proxy.my-site.com
   DocumentRoot /var/www/html/
-  ProxyRequests off
-  ProxyPass / http://127.0.0.1:8080/  retry=0
+
+  RewriteEngine On
+  RewriteCond %{HTTP:Upgrade} =websocket [NC]
+  RewriteRule /(.*)           ws://127.0.0.1:8080/$1 [P,L]
+  RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+  RewriteRule /(.*)           http://127.0.0.1:8080/$1 [P,L]
   ProxyPreserveHost On
 
   # Include /your/ssl/config.conf

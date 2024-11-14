@@ -44,6 +44,8 @@ func RunServer() {
 		}
 	})
 
+	proxy.RegisterFromConfigFile()
+
 	log.Println("Listening on", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatalln("failed to ListenAndServe:", err)
