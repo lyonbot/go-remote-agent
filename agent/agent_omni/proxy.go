@@ -219,6 +219,15 @@ func (s *PtySession) SetupProxy() {
 				wg := sync.WaitGroup{}
 				defer wg.Wait()
 
+				conn.SetPingHandler(func(appData string) error {
+					s.Write(utils.JoinBytes2(0x21, idBytes, []byte{0x09}, []byte(appData)))
+					return nil
+				})
+				conn.SetPongHandler(func(appData string) error {
+					s.Write(utils.JoinBytes2(0x21, idBytes, []byte{0x0a}, []byte(appData)))
+					return nil
+				})
+
 				// ---- continuous read data
 				C_user_data := make(chan []byte, 5)
 				ctx, stop := context.WithCancel(s.Ctx)

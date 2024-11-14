@@ -299,6 +299,15 @@ func (c *connectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 			return err
 		}
 
+		wsConn.SetPingHandler(func(appData string) error {
+			utils.TryWrite(chanToAgent, utils.JoinBytes2(0x21, idBytes, []byte{0x09}, []byte(appData)))
+			return nil
+		})
+		wsConn.SetPongHandler(func(appData string) error {
+			utils.TryWrite(chanToAgent, utils.JoinBytes2(0x21, idBytes, []byte{0x0a}, []byte(appData)))
+			return nil
+		})
+
 		wsConnClosed := make(chan struct{}, 1)
 		wg := sync.WaitGroup{}
 

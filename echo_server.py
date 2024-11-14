@@ -168,6 +168,7 @@ async def echo(websocket):
     Receives messages and sends them back to the client.
     """
     try:
+        await websocket.send("hello world")
         async for message in websocket:
             logging.info(f"Received message: {message}")
             await websocket.send(message)

@@ -262,7 +262,11 @@ A->S:
 
 Caveats:
 
-- In websocket mode, `0x21` package format is `<uint8 messageType> <data>` so we can distinguish text or binary data.
+- In websocket mode, `0x21` package format is `<uint8 messageType> <data>` and the messageType is:
+  - `0x01` - text data
+  - `0x02` - binary data
+  - `0x09` - ping
+  - `0x0a` - pong
 - For HTTP requests, S->A sending `0x22` package will close the connection.
 
 ## How Agent communicate with Server
