@@ -258,11 +258,27 @@ func (c *connectionToAgent) waitForReady() (err error) {
 	return err
 }
 
+func stripHeaders(headers []biz.ProxyHttpHeader) []biz.ProxyHttpHeader {
+	ans := make([]biz.ProxyHttpHeader, 0, len(headers))
+	for _, header := range headers {
+		name := strings.ToLower(header.Name)
+		if (name == "connection" || name == "upgrade" || name == "keep-alive") ||
+			(name == "proxy-connection" || name == "proxy-authorization") ||
+			(name == "sec-websocket-key" || name == "sec-websocket-version" || name == "sec-websocket-extensions" || name == "sec-websocket-accept") {
+			continue
+		}
+		ans = append(ans, header)
+	}
+	return ans
+}
+
 // proxy HTTP request from client to remote via agent.
 // if failed to build a connection, it will return an error, and you shall send "Bad Gateway" response to client when error presents.
 func (c *connectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.ResponseWriter, r *http.Request) error {
 	id := c.counter.Add(1)
 	idBytes := binary.BigEndian.AppendUint32(nil, id)
+
+	connReq.Headers = stripHeaders(connReq.Headers)
 
 	chanToAgent := c.chanToAgent
 	chanFromAgent := make(chan []byte, 5)
@@ -294,6 +310,7 @@ func (c *connectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 
 	// ---- websocket connection!
 	if connRes.IsWebSocket {
+		connRes.Headers = stripHeaders(connRes.Headers)
 		wsConn, err := ws.Upgrade(w, r, biz.ToHttpRequestHeaders(connRes.Headers))
 		if err != nil {
 			return err
