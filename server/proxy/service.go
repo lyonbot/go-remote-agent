@@ -75,7 +75,7 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 			url += "?" + r.URL.RawQuery
 		}
 
-		isWebSocket := r.Header.Get("Upgrade") == "websocket"
+		isWebSocket := strings.ToLower(r.Header.Get("Upgrade")) == "websocket"
 		if isWebSocket {
 			url = strings.Replace(url, "http", "ws", 1)
 		}

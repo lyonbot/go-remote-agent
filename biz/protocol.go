@@ -31,7 +31,7 @@ type StartPtyRequest struct {
 
 type ProxyHttpRequest struct {
 	Method  string            `msg:"method"`
-	URL     string            `msg:"url"`
+	URL     string            `msg:"url"` // requested url. if is websocket, use ws:// or wss:// prefix
 	Headers []ProxyHttpHeader `msg:"headers"`
 	Host    string            `msg:"host"` // golang http client will use this field to replace Host header
 	Body    []byte            `msg:"body"` // beware: disallowed for ws:// or wss://
