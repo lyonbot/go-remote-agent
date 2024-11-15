@@ -5,7 +5,6 @@ import (
 	"remote-agent/agent/agent_common"
 	"remote-agent/biz"
 	"remote-agent/utils"
-	"sync"
 )
 
 type PtySession struct {
@@ -28,16 +27,10 @@ func Run(task *biz.AgentNotify) {
 	if err != nil {
 		return
 	}
-	defer c.Close()
+	ws := utils.MakeRWChanFromWebSocket(c)
+	defer ws.Close()
 
-	wg := sync.WaitGroup{}
-	ws := utils.MakeRWChanFromWebSocket(c, &wg)
-	defer func() {
-		ws.Close()
-		wg.Wait()
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ws.Ctx)
 
 	session := &PtySession{
 		Ctx:      ctx,

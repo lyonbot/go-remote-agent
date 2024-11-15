@@ -24,13 +24,14 @@ func HandleUpgradeRequest(w http.ResponseWriter, r *http.Request) {
 	agent_name := r.PathValue("agent_name") // required
 	agent_id := r.FormValue("agent_id")     // required
 
-	tunnel, _, agent_instance, notifyAgent, C_to_agent, C_from_agent, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
+	tunnel, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	defer tunnel.Delete()
+	defer tunnel.Close()
 
+	agent_instance := tunnel.AgentInstance
 	if agent_instance == nil {
 		http.Error(w, "agent not found. make sure agent_id is correct", http.StatusBadRequest)
 		return
@@ -66,9 +67,12 @@ func HandleUpgradeRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send msg to agent
-	notifyAgent(biz.AgentNotify{
+	tunnel.NotifyAgent(biz.AgentNotify{
 		Type: "upgrade",
 	})
+
+	C_from_agent := tunnel.ChFromAgent
+	C_to_agent := tunnel.ChToAgent
 
 	var recv []byte
 	var ok bool

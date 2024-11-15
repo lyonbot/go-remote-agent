@@ -34,12 +34,15 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 
 	agent_name := r.PathValue("agent_name") // required
 	agent_id := r.FormValue("agent_id")     // optional
-	tunnel, _, _, notifyAgent, C_to_agent, C_to_server, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
+	tunnel, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	defer tunnel.Delete()
+	defer tunnel.Close()
+
+	C_to_agent := tunnel.ChToAgent
+	C_to_server := tunnel.ChFromAgent
 
 	{ // handle stdin
 		C_stdin := make(chan []byte, 5)
@@ -57,7 +60,7 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 
 		if file, headers, err := r.FormFile("stdin"); err == nil && headers != nil {
 			stdin = true
-			go utils.ReaderToChannel(C_stdin, file)
+			go utils.ReaderToChannel(C_stdin, file, 4096)
 		} else if data := r.FormValue("stdin"); data != "" {
 			stdin = true
 			C_stdin <- []byte(data)
@@ -69,7 +72,7 @@ func HandleClientExec(w http.ResponseWriter, r *http.Request) {
 
 	// send msg to agent
 
-	if err := notifyAgent(biz.AgentNotify{
+	if err := tunnel.NotifyAgent(biz.AgentNotify{
 		Type:       "shell",
 		Cmd:        cmd,
 		HasStdin:   stdin,

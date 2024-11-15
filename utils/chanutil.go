@@ -4,17 +4,16 @@ import (
 	"context"
 	"errors"
 	"io"
-	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
 // ReadToChannel reads from r to ch
 // and close ch when r is closed
-func ReaderToChannel(ch chan<- []byte, r io.Reader) {
+func ReaderToChannel(ch chan<- []byte, r io.Reader, bufferSize int) {
 	defer close(ch)
 	for {
-		buf := make([]byte, 1024)
+		buf := make([]byte, bufferSize)
 		n, err := (r).Read(buf)
 		if n > 0 {
 			ch <- buf[:n]
@@ -44,28 +43,6 @@ func ReadChanUnderContext[Data any](ctx context.Context, ch <-chan Data, callbac
 	}
 }
 
-func MakeChanIf[Result any](cond bool, size int) chan Result {
-	if cond {
-		return make(chan Result, size)
-	}
-
-	return nil
-}
-
-// only close ch if ch is not nil
-func TryClose[Result any](ch chan<- Result) {
-	if ch != nil {
-		close(ch)
-	}
-}
-
-// only write data to ch if ch is not nil
-func TryWrite[Result any](ch chan<- Result, data Result) {
-	if ch != nil {
-		ch <- data
-	}
-}
-
 type RWChan struct {
 	Ctx   context.Context
 	Close context.CancelFunc
@@ -90,8 +67,8 @@ func (r *RWChan) IsClosed() bool {
 //
 // connection is closed when chWriteToConn is closed
 func MakeRWChanTee(chToConn <-chan []byte, parentCtx context.Context) (conn *RWChan, chFromConn <-chan []byte) {
-	_chanToConn := make(chan []byte, 5)
-	_chanFromConn := make(chan []byte, 5)
+	_chanToConn := make(chan []byte)
+	_chanFromConn := make(chan []byte)
 
 	ctx, cancel := context.WithCancel(parentCtx)
 	c := &RWChan{
@@ -124,11 +101,12 @@ func MakeRWChanTee(chToConn <-chan []byte, parentCtx context.Context) (conn *RWC
 
 // convert websocket conn to channels
 //
-// - Read is read binary data from conn
-// - Write is write binary data to conn
-func MakeRWChanFromWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) *RWChan {
-	read := make(chan []byte, 5)
-	write := make(chan []byte, 5)
+// 1. Read is read binary data from conn
+// 2. Write is write binary data to conn
+// 3. Will close conn
+func MakeRWChanFromWebSocket(conn *websocket.Conn) *RWChan {
+	read := make(chan []byte)
+	write := make(chan []byte)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -139,11 +117,8 @@ func MakeRWChanFromWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) *RWChan {
 		Close: cancel,
 	}
 
-	wg.Add(2)
-
 	// read from conn
 	go func() {
-		defer wg.Done()
 		defer close(read)
 
 		for {
@@ -163,7 +138,6 @@ func MakeRWChanFromWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) *RWChan {
 
 	// write to conn
 	go func() {
-		defer wg.Done()
 		defer conn.Close()
 		defer close(write)
 

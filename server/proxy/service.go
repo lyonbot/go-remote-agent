@@ -148,20 +148,22 @@ func newConnectionToAgent(ctx context.Context) *connectionToAgent {
 }
 
 func (c *connectionToAgent) connect(agent_name string, agent_id string, onDisconnected func(error)) error {
-	tunnel, _, _, notifyAgent, C_to_agent, C_from_agent, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
+	tunnel, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
 		onDisconnected(err)
 		return err
 	}
 
+	C_from_agent := tunnel.ChFromAgent
+	C_to_agent := tunnel.ChToAgent
+
 	disconnect := func(err error) {
-		tunnel.Delete()
-		close(C_to_agent)
+		tunnel.Close()
 		onDisconnected(err)
 	}
 
 	// notify agent
-	if err := notifyAgent(biz.AgentNotify{
+	if err := tunnel.NotifyAgent(biz.AgentNotify{
 		Type: "pty",
 	}); err != nil {
 		disconnect(err)
@@ -317,11 +319,11 @@ func (c *connectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 		}
 
 		wsConn.SetPingHandler(func(appData string) error {
-			utils.TryWrite(chanToAgent, utils.JoinBytes2(0x21, idBytes, []byte{0x09}, []byte(appData)))
+			chanToAgent <- (utils.JoinBytes2(0x21, idBytes, []byte{0x09}, []byte(appData)))
 			return nil
 		})
 		wsConn.SetPongHandler(func(appData string) error {
-			utils.TryWrite(chanToAgent, utils.JoinBytes2(0x21, idBytes, []byte{0x0a}, []byte(appData)))
+			chanToAgent <- (utils.JoinBytes2(0x21, idBytes, []byte{0x0a}, []byte(appData)))
 			return nil
 		})
 

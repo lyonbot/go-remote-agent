@@ -117,7 +117,9 @@ func (s *PtySession) SetupProxy() {
 
 		if val, ok := channels.Load(id); ok {
 			channel := val.(*ProxyChannel)
-			utils.TryWrite(channel.FromUser, recv[5:])
+			if channel.FromUser != nil {
+				channel.FromUser <- recv[5:]
+			}
 		} else {
 			s.WriteDebugMessage(fmt.Sprintf("tcp proxy 0x%x not found", id))
 		}
@@ -135,8 +137,10 @@ func (s *PtySession) SetupProxy() {
 
 		if val, ok := channels.Load(id); ok {
 			channel := val.(*ProxyChannel)
-			utils.TryClose(channel.FromUser)
-			channel.FromUser = nil
+			if channel.FromUser != nil {
+				close(channel.FromUser)
+				channel.FromUser = nil
+			}
 		} else {
 			s.WriteDebugMessage(fmt.Sprintf("tcp proxy 0x%x not found", id))
 		}

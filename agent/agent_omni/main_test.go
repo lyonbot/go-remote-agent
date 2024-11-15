@@ -41,7 +41,7 @@ type TestSession struct {
 func makeTestSession() (ts *TestSession) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	chToWS := make(chan []byte, 5)
+	chToWS := make(chan []byte)
 	ws, chFromWS := utils.MakeRWChanTee(chToWS, ctx)
 	session := &agent_omni.PtySession{
 		Ctx:      ctx,

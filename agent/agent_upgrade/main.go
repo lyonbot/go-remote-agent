@@ -7,7 +7,6 @@ import (
 	"remote-agent/agent/agent_common"
 	"remote-agent/biz"
 	"remote-agent/utils"
-	"sync"
 )
 
 func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
@@ -15,12 +14,7 @@ func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
 	if err != nil {
 		return
 	}
-	defer c.Close()
-
-	wg := sync.WaitGroup{}
-	ws := utils.MakeRWChanFromWebSocket(c, &wg)
-
-	defer wg.Wait()
+	ws := utils.MakeRWChanFromWebSocket(c)
 	defer ws.Close()
 
 	// ---- setup process

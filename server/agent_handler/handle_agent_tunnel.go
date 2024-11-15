@@ -3,8 +3,6 @@ package agent_handler
 import (
 	"log"
 	"net/http"
-	"remote-agent/utils"
-	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -44,45 +42,5 @@ func HandleAgentTunnelRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer c.Close()
-	wg := sync.WaitGroup{}
-
-	ch := utils.MakeRWChanFromWebSocket(c, &wg)
-	C_closed_from_agent := make(chan struct{}, 1)
-
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		defer c.Close()
-		defer ch.Close()
-
-		for {
-			select {
-			case data, ok := <-tunnel.ToAgent:
-				if !ok {
-					// no more data to agent, close connection
-					return
-				}
-				ch.Write(data)
-			case <-C_closed_from_agent:
-				// WARNING: this may cause tunnel.ToAgent not closed?
-				return
-			}
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer close(tunnel.ToServer)
-
-		for data := range ch.Read {
-			tunnel.ToServer <- data
-		}
-
-		C_closed_from_agent <- struct{}{}
-		close(C_closed_from_agent)
-	}()
-
-	wg.Wait()
+	tunnel.pipeToWebSocketAndRun(c)
 }

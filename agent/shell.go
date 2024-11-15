@@ -19,10 +19,10 @@ func run_shell(task *biz.AgentNotify) {
 	if err != nil {
 		return
 	}
-	defer c.Close()
+	ws := utils.MakeRWChanFromWebSocket(c)
+	defer ws.Close()
 
 	wg := sync.WaitGroup{}
-	ws := utils.MakeRWChanFromWebSocket(c, &wg)
 
 	// ---- setup process
 
@@ -162,7 +162,6 @@ func run_shell(task *biz.AgentNotify) {
 	data := []byte{0x00, 0xff, 0xff, 0xff, 0xff}
 	binary.LittleEndian.PutUint32(data[1:], uint32(code))
 	ws.Write(data)
-	ws.Close()
 
 	wg.Wait()
 }
