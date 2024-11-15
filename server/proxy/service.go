@@ -85,9 +85,17 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 		var body []byte
 		if !isWebSocket && r.Body != nil {
 			if r.ContentLength > 0 {
+				bytesRead := int64(0)
 				body = make([]byte, r.ContentLength)
-				if n, err := r.Body.Read(body); err != nil && int64(n) != r.ContentLength {
-					return nil, err
+				for {
+					n, err := r.Body.Read(body[bytesRead:])
+					bytesRead += int64(n)
+					if bytesRead == r.ContentLength {
+						break
+					}
+					if err != nil {
+						return nil, err
+					}
 				}
 			} else {
 				body, err = io.ReadAll(r.Body)
