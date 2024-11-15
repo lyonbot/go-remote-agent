@@ -20,15 +20,9 @@ func TestProxyTcp(t *testing.T) {
 	}
 	defer echoServer.Stop()
 
-	session, wg, wsRead, wsWrite, cancel := makeTestSession()
-	defer cancel()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		session.SetupProxy()
-		session.Run()
-	}()
+	ts := makeTestSession()
+	defer ts.TerminateSession()
+	go ts.Run()
 
 	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
 	connect_command := utils.JoinBytes2(
@@ -42,45 +36,45 @@ func TestProxyTcp(t *testing.T) {
 	// 1. disconnect by remote
 
 	// shall connect to 127.0.0.1:80
-	wsRead <- connect_command
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:6]) != "20deadbeef00" {
+	ts.ChToAgent <- connect_command
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv[:6]) != "20deadbeef00" {
 		t.Fatalf("failed to connect: %s", bytes2hex(recv))
 	}
 
 	// send data
-	wsRead <- hex2bytes("21deadbeefdeadbeef")
+	ts.ChToAgent <- hex2bytes("21deadbeefdeadbeef")
 
 	// recv echo data
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "21deadbeefdeadbeef" {
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv) != "21deadbeefdeadbeef" {
 		t.Fatalf("failed to recv data 0: %s", bytes2hex(recv))
 	}
 
 	// recv
 	echoServer.Write(hex2bytes("12345678"))
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "21deadbeef12345678" {
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv) != "21deadbeef12345678" {
 		t.Fatalf("failed to recv data 1: %s", bytes2hex(recv))
 	}
 
 	// recv closing
 	echoServer.KickAllClients()
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "22deadbeef" {
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv) != "22deadbeef" {
 		t.Fatalf("failed to recv closing: %s", bytes2hex(recv))
 	}
 
 	// -------------------------------------
 	// 2. disconnect by user
 
-	wsRead <- connect_command
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:6]) != "20deadbeef00" {
+	ts.ChToAgent <- connect_command
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv[:6]) != "20deadbeef00" {
 		t.Fatalf("failed to connect: %s", bytes2hex(recv))
 	}
-	wsRead <- hex2bytes("21deadbeefdeadbeef")
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "21deadbeefdeadbeef" {
+	ts.ChToAgent <- hex2bytes("21deadbeefdeadbeef")
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv) != "21deadbeefdeadbeef" {
 		t.Fatalf("failed to recv data 0: %s", bytes2hex(recv))
 	}
 
-	wsRead <- hex2bytes("22deadbeef") // close
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv) != "22deadbeef" {
+	ts.ChToAgent <- hex2bytes("22deadbeef") // close
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv) != "22deadbeef" {
 		t.Fatalf("failed to recv closing: %s", bytes2hex(recv))
 	}
 	time.Sleep(100 * time.Millisecond)

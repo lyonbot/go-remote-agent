@@ -10,18 +10,17 @@ import (
 
 type PtySession struct {
 	Ctx context.Context
-	Ws  *utils.WSConnToChannelsResult
-	Wg  *sync.WaitGroup
+	Ws  *utils.RWChan
 
 	Handlers []func(recv []byte) // length of 255
 }
 
 func (s *PtySession) WriteDebugMessage(data string) {
-	s.Ws.Write <- utils.PrependBytes([]byte{0xff}, []byte(data))
+	s.Ws.Write(utils.PrependBytes([]byte{0xff}, []byte(data)))
 }
 
 func (s *PtySession) Write(data []byte) {
-	utils.TryWrite(s.Ws.Write, data)
+	s.Ws.Write(data)
 }
 
 func Run(task *biz.AgentNotify) {
@@ -32,10 +31,9 @@ func Run(task *biz.AgentNotify) {
 	defer c.Close()
 
 	wg := sync.WaitGroup{}
-	ws := utils.WSConnToChannels(c, &wg)
+	ws := utils.MakeRWChanFromWebSocket(c, &wg)
 	defer func() {
-		utils.TryClose(ws.Write)
-		ws.Write = nil // for unclosed pty
+		ws.Close()
 		wg.Wait()
 	}()
 
@@ -44,7 +42,6 @@ func Run(task *biz.AgentNotify) {
 	session := &PtySession{
 		Ctx:      ctx,
 		Ws:       ws,
-		Wg:       &wg,
 		Handlers: make([]func(recv []byte), 256),
 	}
 

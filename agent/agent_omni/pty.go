@@ -58,14 +58,12 @@ func (s *PtySession) SetupPty() {
 				return
 			}
 
-			s.Wg.Add(1)
 			go func() {
 				pty_closed := make(chan bool, 2)
 				defer func() {
 					pty_closed <- true
 				}()
 
-				s.Wg.Add(1)
 				go func() {
 					select {
 					case <-pty_closed: // pty closed
@@ -75,7 +73,6 @@ func (s *PtySession) SetupPty() {
 					pty.Close()
 					pty = nil
 					s.Write([]byte{0x02}) // pty closed
-					s.Wg.Done()
 				}()
 
 				for {

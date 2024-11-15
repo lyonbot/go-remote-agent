@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"remote-agent/agent/agent_omni"
 	"remote-agent/utils"
-	"sync"
 	"time"
 )
 
@@ -31,26 +30,38 @@ func readWithTimeout(ch <-chan []byte) []byte {
 	}
 }
 
-func makeTestSession() (session *agent_omni.PtySession, wg *sync.WaitGroup, wsRead chan<- []byte, wsWrite <-chan []byte, cancel context.CancelFunc) {
-	var ctx context.Context
+type TestSession struct {
+	Session          *agent_omni.PtySession
+	TerminateSession context.CancelFunc
 
-	ctx, cancel = context.WithCancel(context.Background())
-	a := make(chan []byte, 5)
-	b := make(chan []byte, 5)
-	wsRead = a
-	wsWrite = b
-	ws := &utils.WSConnToChannelsResult{
-		Read:  a,
-		Write: b,
-	}
-	wg = &sync.WaitGroup{}
+	ChFromAgent <-chan []byte
+	ChToAgent   chan<- []byte
+}
 
-	session = &agent_omni.PtySession{
+func makeTestSession() (ts *TestSession) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	chToWS := make(chan []byte, 5)
+	ws, chFromWS := utils.MakeRWChanTee(chToWS, ctx)
+	session := &agent_omni.PtySession{
 		Ctx:      ctx,
 		Ws:       ws,
-		Wg:       wg,
-		Handlers: make([]func(recv []byte), 255),
+		Handlers: make([]func(recv []byte), 256),
+	}
+
+	ts = &TestSession{
+		Session:          session,
+		TerminateSession: cancel,
+
+		ChFromAgent: chFromWS,
+		ChToAgent:   chToWS,
 	}
 
 	return
+}
+
+// usage: go ts.Run()
+func (ts *TestSession) Run() {
+	ts.Session.SetupProxy()
+	ts.Session.Run()
 }

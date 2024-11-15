@@ -47,7 +47,7 @@ func HandleAgentTunnelRequest(w http.ResponseWriter, r *http.Request) {
 	defer c.Close()
 	wg := sync.WaitGroup{}
 
-	ch := utils.WSConnToChannels(c, &wg)
+	ch := utils.MakeRWChanFromWebSocket(c, &wg)
 	C_closed_from_agent := make(chan struct{}, 1)
 
 	wg.Add(2)
@@ -55,7 +55,7 @@ func HandleAgentTunnelRequest(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer wg.Done()
 		defer c.Close()
-		defer close(ch.Write)
+		defer ch.Close()
 
 		for {
 			select {
@@ -64,7 +64,7 @@ func HandleAgentTunnelRequest(w http.ResponseWriter, r *http.Request) {
 					// no more data to agent, close connection
 					return
 				}
-				ch.Write <- data
+				ch.Write(data)
 			case <-C_closed_from_agent:
 				// WARNING: this may cause tunnel.ToAgent not closed?
 				return

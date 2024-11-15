@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 
@@ -65,19 +66,78 @@ func TryWrite[Result any](ch chan<- Result, data Result) {
 	}
 }
 
-type WSConnToChannelsResult struct {
+type RWChan struct {
+	Ctx   context.Context
+	Close context.CancelFunc
+
 	Read  <-chan []byte
-	Write chan<- []byte
+	write chan<- []byte // internal - do not close me!
+}
+
+func (r *RWChan) Write(data []byte) error {
+	if r.IsClosed() {
+		return errors.New("closed")
+	}
+	r.write <- data
+	return nil
+}
+
+func (r *RWChan) IsClosed() bool {
+	return r.Ctx.Err() != nil
+}
+
+// you may act as a "server", sending and receiving data from conn(aka. agent)
+//
+// connection is closed when chWriteToConn is closed
+func MakeRWChanTee(chToConn <-chan []byte, parentCtx context.Context) (conn *RWChan, chFromConn <-chan []byte) {
+	_chanToConn := make(chan []byte, 5)
+	_chanFromConn := make(chan []byte, 5)
+
+	ctx, cancel := context.WithCancel(parentCtx)
+	c := &RWChan{
+		Read:  _chanToConn,
+		write: _chanFromConn,
+		Ctx:   ctx,
+		Close: cancel,
+	}
+
+	go func() {
+		// ---- forward data from mock server to agent
+		for data := range chToConn {
+			if !c.IsClosed() {
+				_chanToConn <- data
+			}
+		}
+
+		// ---- mock server closed
+		cancel()
+	}()
+
+	go func() {
+		<-ctx.Done()
+		close(_chanToConn)
+		close(_chanFromConn)
+	}()
+
+	return c, _chanFromConn
 }
 
 // convert websocket conn to channels
 //
 // - Read is read binary data from conn
 // - Write is write binary data to conn
-func WSConnToChannels(c *websocket.Conn, wg *sync.WaitGroup) *WSConnToChannelsResult {
+func MakeRWChanFromWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) *RWChan {
 	read := make(chan []byte, 5)
 	write := make(chan []byte, 5)
-	closed := make(chan struct{}, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	wsc := &RWChan{
+		Read:  read,
+		write: write,
+		Ctx:   ctx,
+		Close: cancel,
+	}
 
 	wg.Add(2)
 
@@ -87,44 +147,39 @@ func WSConnToChannels(c *websocket.Conn, wg *sync.WaitGroup) *WSConnToChannelsRe
 		defer close(read)
 
 		for {
-			_, data, err := c.ReadMessage()
-			if err != nil {
-				break
-			}
-
+			_, data, err := conn.ReadMessage()
 			if len(data) > 0 {
 				read <- data
 			}
+			if err != nil {
+				cancel()
+				break
+			}
+			if wsc.IsClosed() {
+				break
+			}
 		}
-
-		closed <- struct{}{}
-		close(closed)
 	}()
 
 	// write to conn
 	go func() {
 		defer wg.Done()
-		defer c.Close()
+		defer conn.Close()
+		defer close(write)
 
 		for {
 			select {
-			case data, ok := <-write:
-				if !ok {
-					// write channel closed
-					return
-				}
-				if err := c.WriteMessage(websocket.BinaryMessage, data); err != nil {
+			case data := <-write:
+				if err := conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
+					cancel()
 					return
 				}
 
-			case <-closed:
+			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 
-	return &WSConnToChannelsResult{
-		Read:  read,
-		Write: write,
-	}
+	return wsc
 }

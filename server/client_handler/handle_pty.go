@@ -23,9 +23,8 @@ func HandleClientPty(w http.ResponseWriter, r *http.Request) {
 	defer c.Close()
 
 	wg := sync.WaitGroup{}
-	ch := utils.WSConnToChannels(c, &wg)
+	ch := utils.MakeRWChanFromWebSocket(c, &wg)
 	C_from_client := ch.Read
-	C_to_client := ch.Write
 
 	// make a tunnel
 	agent_name := r.PathValue("agent_name") // required
@@ -49,11 +48,11 @@ func HandleClientPty(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		defer close(C_to_client)
+		defer ch.Close()
 		defer c.Close()
 
 		for data := range C_from_agent {
-			C_to_client <- data
+			ch.Write(data)
 		}
 	}()
 

@@ -22,7 +22,7 @@ func run_shell(task *biz.AgentNotify) {
 	defer c.Close()
 
 	wg := sync.WaitGroup{}
-	ws := utils.WSConnToChannels(c, &wg)
+	ws := utils.MakeRWChanFromWebSocket(c, &wg)
 
 	// ---- setup process
 
@@ -31,7 +31,7 @@ func run_shell(task *biz.AgentNotify) {
 
 	print_error_message := func(msg string) {
 		log.Println("shell:", msg)
-		ws.Write <- utils.PrependBytes([]byte{0x03}, []byte(msg))
+		ws.Write(utils.PrependBytes([]byte{0x03}, []byte(msg)))
 	}
 
 	// pipes
@@ -70,7 +70,7 @@ func run_shell(task *biz.AgentNotify) {
 
 			// discard if not enabled
 			if enabled {
-				ws.Write <- data[:n+1]
+				ws.Write(data[:n+1])
 			}
 		}
 	}
@@ -161,8 +161,8 @@ func run_shell(task *biz.AgentNotify) {
 
 	data := []byte{0x00, 0xff, 0xff, 0xff, 0xff}
 	binary.LittleEndian.PutUint32(data[1:], uint32(code))
-	ws.Write <- data
-	close(ws.Write)
+	ws.Write(data)
+	ws.Close()
 
 	wg.Wait()
 }

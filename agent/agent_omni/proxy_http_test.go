@@ -33,15 +33,9 @@ func TestProxyHttp(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	session, wg, wsRead, wsWrite, cancel := makeTestSession()
-	defer cancel()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		session.SetupProxy()
-		session.Run()
-	}()
+	ts := makeTestSession()
+	defer ts.TerminateSession()
+	go ts.Run()
 
 	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
 
@@ -57,8 +51,8 @@ func TestProxyHttp(t *testing.T) {
 
 	// -------------------------------------
 	// 1. send http request
-	wsRead <- connect_command
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:5]) != "23deadbeef" {
+	ts.ChToAgent <- connect_command
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv[:5]) != "23deadbeef" {
 		t.Fatalf("did not recv http dial result: %s", bytes2hex(recv))
 	} else {
 		dial_result := biz.ProxyHttpResponse{}
@@ -86,7 +80,7 @@ func TestProxyHttp(t *testing.T) {
 	go func() {
 		defer close(recv_done)
 		for {
-			chunk := readWithTimeout(wsWrite)
+			chunk := readWithTimeout(ts.ChFromAgent)
 			if bytes2hex(chunk[:5]) == "22deadbeef" {
 				break
 			}
@@ -129,15 +123,9 @@ func TestProxyHttpPOST(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	session, wg, wsRead, wsWrite, cancel := makeTestSession()
-	defer cancel()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		session.SetupProxy()
-		session.Run()
-	}()
+	ts := makeTestSession()
+	defer ts.TerminateSession()
+	go ts.Run()
 
 	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
 
@@ -154,8 +142,8 @@ func TestProxyHttpPOST(t *testing.T) {
 
 	// -------------------------------------
 	// 1. send http request
-	wsRead <- connect_command
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:5]) != "23deadbeef" {
+	ts.ChToAgent <- connect_command
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv[:5]) != "23deadbeef" {
 		t.Fatalf("did not recv http dial result: %s", bytes2hex(recv))
 	} else {
 		dial_result := biz.ProxyHttpResponse{}
@@ -188,7 +176,7 @@ func TestProxyHttpPOST(t *testing.T) {
 	go func() {
 		defer close(recv_done)
 		for {
-			chunk := readWithTimeout(wsWrite)
+			chunk := readWithTimeout(ts.ChFromAgent)
 			if bytes2hex(chunk[:5]) == "22deadbeef" {
 				break
 			}
@@ -238,15 +226,9 @@ func TestProxyHttpAbort(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	session, wg, wsRead, wsWrite, cancel := makeTestSession()
-	defer cancel()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		session.SetupProxy()
-		session.Run()
-	}()
+	ts := makeTestSession()
+	defer ts.TerminateSession()
+	go ts.Run()
 
 	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
 
@@ -259,8 +241,8 @@ func TestProxyHttpAbort(t *testing.T) {
 
 	// -------------------------------------
 	// 1. send http request
-	wsRead <- connect_command
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:5]) != "23deadbeef" {
+	ts.ChToAgent <- connect_command
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv[:5]) != "23deadbeef" {
 		t.Fatalf("did not recv http dial result: %s", bytes2hex(recv))
 	} else {
 		dial_result := biz.ProxyHttpResponse{}
@@ -292,7 +274,7 @@ func TestProxyHttpAbort(t *testing.T) {
 	recv_end := make(chan struct{})
 	go func() {
 		for {
-			chunk := readWithTimeout(wsWrite)
+			chunk := readWithTimeout(ts.ChFromAgent)
 			if bytes2hex(chunk[:5]) == "22deadbeef" {
 				recv_end <- struct{}{}
 				return
@@ -307,7 +289,7 @@ func TestProxyHttpAbort(t *testing.T) {
 	}()
 
 	time.Sleep(150 * time.Millisecond)
-	wsRead <- hex2bytes("22deadbeef") // close
+	ts.ChToAgent <- hex2bytes("22deadbeef") // close
 	select {
 	case <-recv_end:
 	case <-time.After(time.Second * 5):
@@ -357,15 +339,9 @@ func TestProxyHttpWebSocket(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	session, wg, wsRead, wsWrite, cancel := makeTestSession()
-	defer cancel()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		session.SetupProxy()
-		session.Run()
-	}()
+	ts := makeTestSession()
+	defer ts.TerminateSession()
+	go ts.Run()
 
 	idBytes := []byte{0xde, 0xad, 0xbe, 0xef}
 
@@ -381,8 +357,8 @@ func TestProxyHttpWebSocket(t *testing.T) {
 
 	// -------------------------------------
 	// 1. send http request
-	wsRead <- connect_command
-	if recv := readWithTimeout(wsWrite); bytes2hex(recv[:5]) != "23deadbeef" {
+	ts.ChToAgent <- connect_command
+	if recv := readWithTimeout(ts.ChFromAgent); bytes2hex(recv[:5]) != "23deadbeef" {
 		t.Fatalf("did not recv http dial result: %s", bytes2hex(recv))
 	} else {
 		dial_result := biz.ProxyHttpResponse{}
@@ -406,10 +382,8 @@ func TestProxyHttpWebSocket(t *testing.T) {
 	// -------------------------------------
 	// 2. handle data
 	wsRecvMessages := make(chan []byte, 10)
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		for data := range wsWrite {
+		for data := range ts.ChFromAgent {
 			if data[0] == 0x21 {
 				wsRecvMessages <- data[5:]
 			}
@@ -428,13 +402,13 @@ func TestProxyHttpWebSocket(t *testing.T) {
 	Assert(t, string(msg2) == "\x01text", "ws message 2")
 
 	// send a message and echo back
-	wsRead <- utils.JoinBytes2(0x21, idBytes, []byte("\x01hello"))
+	ts.ChToAgent <- utils.JoinBytes2(0x21, idBytes, []byte("\x01hello"))
 	msg3 := <-wsRecvMessages
 	Assert(t, string(msg3) == "\x01recv: hello", "ws message 3")
 
 	// -------------------------------------
 	// 3. close
-	wsRead <- utils.JoinBytes2(0x22, idBytes)
+	ts.ChToAgent <- utils.JoinBytes2(0x22, idBytes)
 	select {
 	case <-wsRecvMessages:
 	case <-time.After(time.Second * 5):

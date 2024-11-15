@@ -18,10 +18,10 @@ func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
 	defer c.Close()
 
 	wg := sync.WaitGroup{}
-	ws := utils.WSConnToChannels(c, &wg)
+	ws := utils.MakeRWChanFromWebSocket(c, &wg)
 
 	defer wg.Wait()
-	defer close(ws.Write)
+	defer ws.Close()
 
 	// ---- setup process
 	err = func() error {
@@ -37,7 +37,7 @@ func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
 		}
 		defer upgrade.Close()
 
-		ws.Write <- utils.PrependBytes([]byte{0x00}, []byte(upgrade.ExecPath))
+		ws.Write(utils.PrependBytes([]byte{0x00}, []byte(upgrade.ExecPath)))
 
 		// ---- recv executable info
 		recv, ok = <-ws.Read
@@ -68,11 +68,11 @@ func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
 			}
 
 			size_received += int64(len(data))
-			ws.Write <- binary.LittleEndian.AppendUint64([]byte{0x00}, uint64(size_received))
+			ws.Write(binary.LittleEndian.AppendUint64([]byte{0x00}, uint64(size_received)))
 		}
 
 		// --- recv done
-		ws.Write <- []byte{0x01}
+		ws.Write([]byte{0x01})
 
 		// --- run new executable
 		if err = upgrade.Close(); err != nil {
@@ -81,11 +81,11 @@ func Run(task *biz.AgentNotify, cancel_agent_task_stream context.CancelFunc) {
 
 		// success. terminate self
 		cancel_agent_task_stream()
-		ws.Write <- []byte{0x02}
+		ws.Write([]byte{0x02})
 
 		return nil
 	}()
 	if err != nil {
-		ws.Write <- utils.PrependBytes([]byte{0x99}, []byte(err.Error()))
+		ws.Write(utils.PrependBytes([]byte{0x99}, []byte(err.Error())))
 	}
 }
