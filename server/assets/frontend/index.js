@@ -164,6 +164,13 @@ Alpine.data('the_app', function () {
       term.open(termContainer);
       term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m\r\n')
       term.onResize(sendSizeToAgent)
+      if (term.textarea) {
+        term.textarea.setAttribute("enterkeyhint", "send");
+        term.textarea.setAttribute("autocomplete", "off");
+        term.textarea.setAttribute("autocorrect", "off");
+        term.textarea.setAttribute("autocapitalize", "off");
+        term.textarea.setAttribute("spellcheck", "false");
+      }
 
       window.term = term
       window.addEventListener('resize', debounce(() => fitAddon.fit(), 500))
