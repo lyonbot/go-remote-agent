@@ -3,9 +3,11 @@ package proxy
 import (
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"remote-agent/biz"
 	"strings"
+	"sync/atomic"
 )
 
 type Service struct {
@@ -18,24 +20,27 @@ type Service struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
-	conn   *ConnectionToAgent
+	conn   atomic.Pointer[ConnectionToAgent]
 }
 
 func (s *Service) ensureConnected() (c *ConnectionToAgent, err error) {
-	c = s.conn
+	c = s.conn.Load()
 
 	if c == nil {
 		// create new connection
-		c = NewConnectionToAgent(s.ctx, s.AgentName, s.AgentId, func(err error) {
-			if c == s.conn {
-				s.conn = nil
-			}
+		c = NewConnectionToAgent(s.ctx)
+		s.conn.CompareAndSwap(nil, c)
+
+		log.Printf("[proxy '%s'] agent connection created", s.Host)
+		go c.ConnectAndCommunicate(s.AgentName, s.AgentId, func(err error) {
+			log.Printf("[proxy '%s'] agent connection closed: %s", s.Host, err.Error())
+			s.conn.CompareAndSwap(c, nil)
 		})
-		s.conn = c
 	}
 
 	// wait for ready
 	if err = c.WaitForReady(); err != nil {
+		s.conn.CompareAndSwap(c, nil)
 		return nil, err
 	}
 	return c, nil
@@ -103,6 +108,7 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := c.HandleRequest(bizRequest, w, r); err != nil {
+		log.Printf("[proxy '%s'] error %s %s: %s", s.Host, bizRequest.Method, bizRequest.URL, err.Error())
 		w.Header().Add("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadGateway)
 		w.Write([]byte(err.Error()))

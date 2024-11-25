@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"remote-agent/biz"
 	"remote-agent/server/agent_handler"
@@ -23,6 +24,7 @@ import (
 type ConnectionToAgent struct {
 	Ctx context.Context
 
+	agentName   string
 	counter     atomic.Uint32 // connection counter
 	chanToAgent chan<- []byte // send to agent
 	R           sync.Map      // map[uint32]<-chan []byte // receive from agent
@@ -41,29 +43,31 @@ const (
 	CTAStatusDisconnected
 )
 
-func NewConnectionToAgent(ctx context.Context, agent_name string, agent_id string, onDisconnected func(error)) *ConnectionToAgent {
+func NewConnectionToAgent(ctx context.Context) *ConnectionToAgent {
 	c := &ConnectionToAgent{
 		Ctx: ctx,
 	}
 	c.cond = sync.NewCond(&c.mu)
 
-	// start a goroutine to communicate with agent
-	go func() {
-		err := c.communicate(agent_name, agent_id)
-		defer onDisconnected(err)
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		c.status = CTAStatusDisconnected
-		c.connectionError = err
-		c.cond.Broadcast()
-	}()
-
 	return c
+}
+
+// run this in a goroutine when connection created.
+func (c *ConnectionToAgent) ConnectAndCommunicate(agent_name string, agent_id string, onDisconnected func(error)) {
+	err := c.communicate(agent_name, agent_id)
+	defer onDisconnected(err)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.status = CTAStatusDisconnected
+	c.connectionError = err
+	c.cond.Broadcast()
 }
 
 // (internal) a goroutine that talks to agent. it always returns a error, when connection is closed.
 // when connected, it will update c.status and notify c.cond. but when disconnected, it wont update c.status.
 func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) error {
+	c.agentName = agent_name
+
 	tunnel, err := agent_handler.MakeAgentTunnel(agent_name, agent_id)
 	if err != nil {
 		return err
@@ -85,9 +89,9 @@ func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) erro
 	C_to_agent <- ping
 	select {
 	case <-c.Ctx.Done():
-		return errors.New("parent context canceled")
+		return errors.New("connection aborted by parent context")
 	case <-time.After(time.Second * 5):
-		return errors.New("timeout")
+		return errors.New("connection ping timeout")
 	case pong := <-C_from_agent:
 		if !bytes.Equal(ping, pong) {
 			return errors.New("ping failed. got " + hex.EncodeToString(pong))
@@ -118,12 +122,16 @@ func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) erro
 			}
 
 		case data, ok := <-C_from_agent:
-			if len(data) >= 5 {
+			if data[0] == 0xff {
+				log.Printf("[agent '%s'] message: %s", agent_name, string(data[1:]))
+			} else if len(data) >= 5 {
 				isAboutToClean = false
 				idBytes := data[1:5]
 				id := binary.BigEndian.Uint32(idBytes)
 				if ch, ok := c.R.Load(id); ok && ch != nil {
 					ch.(chan []byte) <- data
+				} else {
+					log.Printf("[agent '%s'] bad proxy reqId 0x%x with package 0x%x", agent_name, id, data[0])
 				}
 			}
 			if !ok {
@@ -176,7 +184,9 @@ func stripHeaders(headers []biz.ProxyHttpHeader) []biz.ProxyHttpHeader {
 // if failed to build a connection, it will return an error, and you shall send "Bad Gateway" response to client when error presents.
 func (c *ConnectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.ResponseWriter, r *http.Request) error {
 	id := c.counter.Add(1)
-	idBytes := binary.BigEndian.AppendUint32(nil, id)
+	idBytes := binary.LittleEndian.AppendUint32(nil, id)
+
+	log.Printf("[agent '%s'] request 0x%d: %s %s", c.agentName, id, connReq.Method, connReq.URL)
 
 	connReq.Headers = stripHeaders(connReq.Headers)
 
@@ -296,6 +306,7 @@ func (c *ConnectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 				return nil
 			case <-c.Ctx.Done():
 				// agent disconnected
+				chanToAgent <- utils.JoinBytes2(0x22, idBytes)
 				return nil
 			case data := <-chanFromAgent:
 				if data[0] == 0x22 {
@@ -304,8 +315,13 @@ func (c *ConnectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 				}
 				if data[0] == 0x21 {
 					// data
-					w.(io.Writer).Write(data[5:])
+					_, err := w.(io.Writer).Write(data[5:])
 					w.(http.Flusher).Flush()
+					if err != nil {
+						// connection closed by client?
+						chanToAgent <- utils.JoinBytes2(0x22, idBytes)
+						return nil
+					}
 				}
 			}
 		}
