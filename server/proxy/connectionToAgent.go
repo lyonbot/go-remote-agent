@@ -127,7 +127,7 @@ func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) erro
 			} else if len(data) >= 5 {
 				isAboutToClean = false
 				idBytes := data[1:5]
-				id := binary.BigEndian.Uint32(idBytes)
+				id := binary.LittleEndian.Uint32(idBytes)
 				if ch, ok := c.R.Load(id); ok && ch != nil {
 					ch.(chan []byte) <- data
 				} else {
@@ -302,11 +302,11 @@ func (c *ConnectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 			select {
 			case <-r.Context().Done():
 				// http request disconnected
+				log.Printf("[agent '%s'] request 0x%d aborted by client", c.agentName, id)
 				chanToAgent <- utils.JoinBytes2(0x22, idBytes)
 				return nil
 			case <-c.Ctx.Done():
 				// agent disconnected
-				chanToAgent <- utils.JoinBytes2(0x22, idBytes)
 				return nil
 			case data := <-chanFromAgent:
 				if data[0] == 0x22 {
@@ -319,6 +319,7 @@ func (c *ConnectionToAgent) HandleRequest(connReq *biz.ProxyHttpRequest, w http.
 					w.(http.Flusher).Flush()
 					if err != nil {
 						// connection closed by client?
+						log.Printf("[agent '%s'] request 0x%d met write error: %s", c.agentName, id, err.Error())
 						chanToAgent <- utils.JoinBytes2(0x22, idBytes)
 						return nil
 					}
