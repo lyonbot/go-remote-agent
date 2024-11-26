@@ -125,12 +125,13 @@ func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) erro
 			if data[0] == 0xff {
 				log.Printf("[agent '%s'] message: %s", agent_name, string(data[1:]))
 			} else if len(data) >= 5 {
-				isAboutToClean = false
 				idBytes := data[1:5]
 				id := binary.LittleEndian.Uint32(idBytes)
 				if ch, ok := c.R.Load(id); ok && ch != nil {
+					isAboutToClean = false
 					ch.(chan []byte) <- data
 				} else {
+					C_to_agent <- utils.JoinBytes2(0x22, idBytes) // close connection
 					log.Printf("[agent '%s'] bad proxy reqId 0x%x with package 0x%x", agent_name, id, data[0])
 				}
 			}

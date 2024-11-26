@@ -135,7 +135,7 @@ func (s *PtySession) SetupProxy() {
 		idBytes := recv[1:5]
 		id := binary.LittleEndian.Uint32(idBytes)
 
-		if val, ok := channels.Load(id); ok {
+		if val, ok := channels.LoadAndDelete(id); ok {
 			channel := val.(*ProxyChannel)
 			if channel.FromUser != nil {
 				close(channel.FromUser)
