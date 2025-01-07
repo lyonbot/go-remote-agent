@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -267,15 +266,11 @@ func (s *PtySession) SetupProxy() {
 
 					// ---- continuous send to user
 					for {
-						messageType, r, err := conn.NextReader()
+						messageType, data, err := conn.ReadMessage()
 						if err != nil {
 							return
 						}
 
-						data, err := io.ReadAll(r)
-						if err != nil {
-							return
-						}
 						s.Write(utils.JoinBytes2(0x21, idBytes, []byte{uint8(messageType)}, data))
 					}
 				}()
