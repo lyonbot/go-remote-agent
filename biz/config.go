@@ -35,6 +35,13 @@ type SavedProxyConfig struct {
 
 var Config AgentConfig
 
+func maybeEnv(s string) string {
+	if strings.HasPrefix(s, "$") {
+		return os.Getenv(s[1:])
+	}
+	return s
+}
+
 func InitConfig() {
 	configPath := flag.String("c", "config.yaml", "Config path")
 	asAgent := flag.Bool("a", false, "Set agent mode")
@@ -45,7 +52,7 @@ func InitConfig() {
 	proxy_server_host := flag.String("psh", "", "Proxy server host (only for server, must contains *)")
 	flag.Parse()
 
-	if data, err := os.ReadFile(*configPath); err == nil {
+	if data, err := os.ReadFile(maybeEnv(*configPath)); err == nil {
 		err = yaml.Unmarshal([]byte(data), &Config)
 		if err != nil {
 			log.Fatalf("Failed to parse config file %s: %v", *configPath, err)
@@ -57,19 +64,19 @@ func InitConfig() {
 		Config.AsAgent = *asAgent
 	}
 	if *name != "" {
-		Config.Name = *name
+		Config.Name = maybeEnv(*name)
 	}
 	if *api_key != "" {
-		Config.APIKey = *api_key
+		Config.APIKey = maybeEnv(*api_key)
 	}
 	if *proxy_server_host != "" {
-		Config.ProxyServerHost = *proxy_server_host
+		Config.ProxyServerHost = maybeEnv(*proxy_server_host)
 	}
 
 	// defaults
 	if Config.AsAgent {
 		if *baseUrl != "" {
-			Config.BaseUrl = *baseUrl
+			Config.BaseUrl = maybeEnv(*baseUrl)
 		}
 		if *insecure {
 			Config.Insecure = true

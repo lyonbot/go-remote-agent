@@ -28,6 +28,7 @@ Then run it:
 
 # run as an agent
 ./agent_linux_amd64 -a -n bot1 -b http://127.0.0.1:8080
+# or use -b '$SERVER_BASE_URL' to read from env
 
 # send command to agent
 curl http://127.0.0.1:8080/api/agent/bot1/exec/ -F "cmd=ffmpeg -codecs" -F stderr=1
