@@ -27,15 +27,17 @@ onMounted(() => {
 
   term.focus()
   term.onData(data => { ptyService.value.sendTermData(data) })
-  window.addEventListener('resize', debounce(() => {
+  const handleResize = debounce(() => {
     fitAddon.fit()
     const dem = fitAddon.proposeDimensions()!
     ptyService.value.resizeTerm(dem.cols, dem.rows)
-  }, 500))
+  }, 500)
+  window.addEventListener('resize', handleResize)
 
   ptyService.value.setTerm(term)
   ptyService.value.connect().then(() => {
     ptyService.value.createPty(props.options)
+    handleResize()
   })
 })
 

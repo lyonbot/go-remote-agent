@@ -54,7 +54,7 @@ function copyProxyInfo(proxy: ProxyDef) {
 
 <template>
   <div class="proxy-manager">
-    <div class="proxy-form">
+    <div class="proxy-form section">
       <h2>Create New Proxy</h2>
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
@@ -86,7 +86,7 @@ function copyProxyInfo(proxy: ProxyDef) {
       </form>
     </div>
 
-    <div class="proxy-list">
+    <div class="proxy-list section">
       <h2>
         Proxy List
         <button @click="refreshProxyList" class="refresh">Refresh</button>
@@ -124,8 +124,14 @@ function copyProxyInfo(proxy: ProxyDef) {
 .proxy-manager {
   display: grid;
   grid-template-columns: 500px 1fr;
-  gap: 2rem;
+  gap: 1rem;
+}
+
+.section {
+  background-color: #f9f9f9;
   padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
 }
 
 .proxy-list {
@@ -134,6 +140,8 @@ function copyProxyInfo(proxy: ProxyDef) {
 }
 
 h2 {
+  margin: 0;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;

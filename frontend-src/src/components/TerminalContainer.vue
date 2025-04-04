@@ -27,7 +27,7 @@ function createTerminal() {
 </script>
 
 <template>
-  <div class="terminal-container">
+  <div class="terminal-container" :class="{ created }">
     <form v-if="!created" @submit.prevent="createTerminal()" class="form">
       <div class="form-group">
         <label for="cmd">Command:</label>
@@ -62,6 +62,12 @@ function createTerminal() {
 .terminal-container {
   position: relative;
   display: flex;
+}
+
+.terminal-container.created {
+  padding: 16px;
+  border-radius: 4px;
+  background-color: #000;
 }
 
 .form {
