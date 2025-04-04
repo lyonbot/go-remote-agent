@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"fmt"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -31,6 +32,8 @@ func HandleWebAssets(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(p)
 		return
+	} else {
+		fmt.Printf("Error reading file %s: %v\n", path, err)
 	}
 
 	// 404
