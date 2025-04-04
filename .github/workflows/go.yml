@@ -16,6 +16,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up NodeJS
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'pnpm'
+    
+    - name: Build frontend
+      run: |
+        cd frontend-src
+        pnpm install
+        pnpm build
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
