@@ -122,7 +122,7 @@ func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) erro
 			}
 
 		case data, ok := <-C_from_agent:
-			if data[0] == 0xff {
+			if len(data) >= 1 && data[0] == 0xff {
 				log.Printf("[agent '%s'] message: %s", agent_name, string(data[1:]))
 			} else if len(data) >= 5 {
 				idBytes := data[1:5]
