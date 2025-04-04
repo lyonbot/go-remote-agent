@@ -3,7 +3,7 @@
     <form class="api-key-input" @submit.prevent="agentStore.reloadAgentInstances()">
       <input type="password" v-model="agentStore.apiKey" placeholder="Enter API Key">
       <button @click="agentStore.reloadAgentInstances()">Fetch List</button>
-      <button @click="agentStore.connectPtyService()" :disabled="!!agentStore.ptyService">Connect Pty</button>
+      <button @click="agentStore.connectPtyService()" :disabled="!!agentStore.ptyService">Connect</button>
       <UpgradeButton />
     </form>
 

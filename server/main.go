@@ -27,6 +27,7 @@ func RunServer() {
 	mux_client.HandleFunc("/api/agent/{agent_name}/upgrade/", client_handler.HandleUpgradeRequest)
 	mux_client.HandleFunc("/api/proxy/", client_handler.HandleProxyListAll)
 	mux_client.HandleFunc("/api/proxy/{host}/", client_handler.HandleProxyEdit)
+	mux_client.HandleFunc("/api/saveConfig", client_handler.HandleSaveConfig)
 	mux_client.HandleFunc("/", assets.HandleWebAssets)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

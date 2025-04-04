@@ -50,6 +50,15 @@ async function deleteProxy(host: string) {
 function copyProxyInfo(proxy: ProxyDef) {
   Object.assign(newProxy.value, proxy)
 }
+
+async function saveProxyList() {
+  const res = await fetch(`./api/saveConfig`, {
+    method: 'POST',
+    headers: { 'X-API-Key': agentStore.apiKey }
+  })
+  if (!res.ok) alert('Failed to save proxy list: ' + (await res.text()))
+  alert('Saved')
+}
 </script>
 
 <template>
@@ -89,7 +98,8 @@ function copyProxyInfo(proxy: ProxyDef) {
     <div class="proxy-list section">
       <h2>
         Proxy List
-        <button @click="refreshProxyList" class="refresh">Refresh</button>
+        <button @click="refreshProxyList">Refresh</button>
+        <button @click="saveProxyList">Save</button>
       </h2>
       <table>
         <thead>

@@ -42,6 +42,21 @@ func maybeEnv(s string) string {
 	return s
 }
 
+var currentConfigPath = "config.yaml"
+
+func WriteConfigFile() error {
+	data, err := yaml.Marshal(&Config)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(currentConfigPath, data, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func InitConfig() {
 	configPath := flag.String("c", "config.yaml", "Config path")
 	asAgent := flag.Bool("a", false, "Set agent mode")
@@ -59,6 +74,7 @@ func InitConfig() {
 			panic(err)
 		}
 	}
+	currentConfigPath = *configPath
 
 	if *asAgent {
 		Config.AsAgent = *asAgent
