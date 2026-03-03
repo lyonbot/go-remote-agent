@@ -2,9 +2,10 @@ package agent_handler
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
 	"remote-agent/biz"
 	"remote-agent/utils"
 	"strconv"
@@ -82,7 +83,9 @@ func MakeAgentTunnel(agent_name, agent_id string) (tunnel *AgentTunnel, err erro
 
 	// ---- make channels
 
-	token := fmt.Sprintf("%x-%x", time.Now().Unix(), rand.Int31())
+	randBytes := make([]byte, 8)
+	rand.Read(randBytes)
+	token := fmt.Sprintf("%x-%s", time.Now().Unix(), hex.EncodeToString(randBytes))
 	chToAgent := make(chan []byte)
 	chFromAgent := make(chan []byte)
 	pipeToWebSocketAndRun := func(conn *websocket.Conn) {
@@ -96,8 +99,16 @@ func MakeAgentTunnel(agent_name, agent_id string) (tunnel *AgentTunnel, err erro
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for data := range chToAgent {
-				ch.Write(data)
+			for {
+				select {
+				case data, ok := <-chToAgent:
+					if !ok {
+						return
+					}
+					ch.Write(data)
+				case <-ch.Ctx.Done():
+					return
+				}
 			}
 		}()
 

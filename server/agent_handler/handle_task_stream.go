@@ -26,12 +26,15 @@ func HandleTaskStreamRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// setup in agents
-	agent := new(Agent)
-	if agent_raw, ok := Agents.LoadOrStore(agent_name, agent); ok {
+	newAgent := &Agent{
+		Name:    agent_name,
+		Channel: make(chan []byte, 5),
+	}
+	var agent *Agent
+	if agent_raw, ok := Agents.LoadOrStore(agent_name, newAgent); ok {
 		agent = agent_raw.(*Agent)
 	} else {
-		agent.Name = agent_name
-		agent.Channel = make(chan []byte, 5)
+		agent = newAgent
 	}
 
 	agent.Count.Add(1)

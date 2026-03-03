@@ -18,8 +18,26 @@ import (
 
 func (s *PtySession) SetupProxy() {
 	type ProxyChannel struct {
-		FromUser chan<- []byte // data from user. user may close this to close the connection
+		fromUser  chan []byte
+		closeOnce sync.Once
 	}
+	newProxyChannel := func() *ProxyChannel {
+		return &ProxyChannel{fromUser: make(chan []byte, 5)}
+	}
+	// Send data into the channel. Safe to call from multiple goroutines concurrently.
+	// Returns silently if the channel is closed or the session context is done.
+	proxySend := func(p *ProxyChannel, data []byte) {
+		defer func() { recover() }() // guard against send-on-closed-channel
+		select {
+		case p.fromUser <- data:
+		case <-s.Ctx.Done():
+		}
+	}
+	// Close the channel exactly once. Safe to call from multiple goroutines.
+	proxyClose := func(p *ProxyChannel) {
+		p.closeOnce.Do(func() { close(p.fromUser) })
+	}
+
 	channels := sync.Map{} // map[uint32]*ProxyChannel
 
 	// open tcp proxy channel
@@ -38,7 +56,7 @@ func (s *PtySession) SetupProxy() {
 			s.Write(utils.JoinBytes2(0x20, idBytes, []byte{err_code}, []byte(msg)))
 		}
 
-		channel := &ProxyChannel{}
+		channel := newProxyChannel()
 		if _, exists := channels.LoadOrStore(id, channel); exists {
 			send_dial_result(0x01, "connection id already exists")
 			s.WriteDebugMessage(fmt.Sprintf("tcp proxy 0x%x already opened", id))
@@ -52,6 +70,7 @@ func (s *PtySession) SetupProxy() {
 			conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 			if err != nil {
 				send_dial_result(0x01, "dial error: "+err.Error())
+				proxyClose(channel)
 				return
 			}
 
@@ -62,22 +81,18 @@ func (s *PtySession) SetupProxy() {
 			wg := sync.WaitGroup{}
 			defer wg.Wait()
 
-			// ---- continuous read data
-			C_user_data := make(chan []byte, 5)
 			ctx, stop := context.WithCancel(s.Ctx)
-			channel.FromUser = C_user_data
 
 			wg.Add(1) // handle data from user
 			go func() {
 				defer wg.Done()
 				defer conn.Close() // if session end, or user close connection, close tcp connection
 
-				stopped_by_ctx := utils.ReadChanUnderContext(ctx, C_user_data, func(data []byte) {
+				stopped_by_ctx := utils.ReadChanUnderContext(ctx, channel.fromUser, func(data []byte) {
 					conn.Write(data)
 				})
-				channel.FromUser = nil
 				if stopped_by_ctx {
-					close(C_user_data)
+					proxyClose(channel)
 				}
 			}()
 
@@ -115,10 +130,7 @@ func (s *PtySession) SetupProxy() {
 		id := binary.LittleEndian.Uint32(idBytes)
 
 		if val, ok := channels.Load(id); ok {
-			channel := val.(*ProxyChannel)
-			if channel.FromUser != nil {
-				channel.FromUser <- recv[5:]
-			}
+			proxySend(val.(*ProxyChannel), recv[5:])
 		} else {
 			s.WriteDebugMessage(fmt.Sprintf("tcp proxy 0x%x not found", id))
 		}
@@ -131,15 +143,10 @@ func (s *PtySession) SetupProxy() {
 			return
 		}
 
-		idBytes := recv[1:5]
-		id := binary.LittleEndian.Uint32(idBytes)
+		id := binary.LittleEndian.Uint32(recv[1:5])
 
 		if val, ok := channels.LoadAndDelete(id); ok {
-			channel := val.(*ProxyChannel)
-			if channel.FromUser != nil {
-				close(channel.FromUser)
-				channel.FromUser = nil
-			}
+			proxyClose(val.(*ProxyChannel))
 		} else {
 			s.WriteDebugMessage(fmt.Sprintf("tcp proxy 0x%x not found", id))
 		}
@@ -157,7 +164,7 @@ func (s *PtySession) SetupProxy() {
 			s.Write(utils.JoinBytes2(0x23, idBytes, resBytes))
 		}
 
-		channel := &ProxyChannel{}
+		channel := newProxyChannel()
 		if _, exists := channels.LoadOrStore(id, channel); exists {
 			dial_result.ConnectionError = "connection id already exists"
 			send_dial_result()
@@ -232,24 +239,21 @@ func (s *PtySession) SetupProxy() {
 				})
 
 				// ---- continuous read data
-				C_user_data := make(chan []byte, 5)
 				ctx, stop := context.WithCancel(s.Ctx)
-				channel.FromUser = C_user_data
 
 				wg.Add(1) // handle data from user
 				go func() {
 					defer wg.Done()
 					defer conn.Close() // if session end, or user close connection, close ws connection
 
-					stopped_by_ctx := utils.ReadChanUnderContext(ctx, C_user_data, func(data []byte) {
+					stopped_by_ctx := utils.ReadChanUnderContext(ctx, channel.fromUser, func(data []byte) {
 						if len(data) >= 1 {
 							messageType := int(data[0])
 							conn.WriteMessage(messageType, data[1:])
 						}
 					})
-					channel.FromUser = nil
 					if stopped_by_ctx {
-						close(C_user_data)
+						proxyClose(channel)
 					}
 				}()
 
@@ -299,18 +303,15 @@ func (s *PtySession) SetupProxy() {
 				defer wg.Wait()
 
 				{ // handle data from user -- wait for "0x22" close-connection package
-					C_user_data := make(chan []byte, 5)
-					channel.FromUser = C_user_data
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
 
-						stopped_by_ctx := utils.ReadChanUnderContext(httpCtx, C_user_data, func(data []byte) {
+						stopped_by_ctx := utils.ReadChanUnderContext(httpCtx, channel.fromUser, func(data []byte) {
 							// nothing to do -- http request is not duplex
 						})
-						channel.FromUser = nil
 						if stopped_by_ctx {
-							close(C_user_data)
+							proxyClose(channel)
 						} else {
 							cancelHttpCtx()
 						}

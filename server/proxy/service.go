@@ -5,8 +5,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"remote-agent/biz"
 	"strings"
+	"sync"
 	"sync/atomic"
 )
 
@@ -20,25 +22,39 @@ type Service struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	connMu sync.Mutex
 	conn   atomic.Pointer[ConnectionToAgent]
 }
 
 func (s *Service) ensureConnected() (c *ConnectionToAgent, err error) {
-	c = s.conn.Load()
-
-	if c == nil {
-		// create new connection
-		c = NewConnectionToAgent(s.ctx)
-		s.conn.CompareAndSwap(nil, c)
-
-		log.Printf("[proxy '%s'] agent connection created", s.Host)
-		go c.ConnectAndCommunicate(s.AgentName, s.AgentId, func(err error) {
-			log.Printf("[proxy '%s'] agent connection closed: %s", s.Host, err.Error())
-			s.conn.CompareAndSwap(c, nil)
-		})
+	// Fast path: connection already established and ready.
+	if c = s.conn.Load(); c != nil {
+		if err = c.WaitForReady(); err == nil {
+			return c, nil
+		}
+		s.conn.CompareAndSwap(c, nil)
 	}
 
-	// wait for ready
+	// Slow path: create a new connection under lock to prevent duplicate goroutines.
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+
+	// Re-check after acquiring the lock.
+	if c = s.conn.Load(); c != nil {
+		if err = c.WaitForReady(); err == nil {
+			return c, nil
+		}
+		s.conn.CompareAndSwap(c, nil)
+	}
+
+	c = NewConnectionToAgent(s.ctx)
+	s.conn.Store(c)
+	log.Printf("[proxy '%s'] agent connection created", s.Host)
+	go c.ConnectAndCommunicate(s.AgentName, s.AgentId, func(connErr error) {
+		log.Printf("[proxy '%s'] agent connection closed: %s", s.Host, connErr.Error())
+		s.conn.CompareAndSwap(c, nil)
+	})
+
 	if err = c.WaitForReady(); err != nil {
 		s.conn.CompareAndSwap(c, nil)
 		return nil, err
@@ -56,14 +72,25 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bizRequest, err := func() (*biz.ProxyHttpRequest, error) {
-		url := s.Target + r.URL.EscapedPath()
+		targetURL := s.Target + r.URL.EscapedPath()
 		if r.URL.RawQuery != "" {
-			url += "?" + r.URL.RawQuery
+			targetURL += "?" + r.URL.RawQuery
 		}
 
 		isWebSocket := strings.ToLower(r.Header.Get("Upgrade")) == "websocket"
 		if isWebSocket {
-			url = strings.Replace(url, "http", "ws", 1)
+			// Replace scheme via url.Parse to avoid corrupting hostnames containing "http".
+			parsed, parseErr := url.Parse(targetURL)
+			if parseErr != nil {
+				return nil, parseErr
+			}
+			switch parsed.Scheme {
+			case "http":
+				parsed.Scheme = "ws"
+			case "https":
+				parsed.Scheme = "wss"
+			}
+			targetURL = parsed.String()
 		}
 
 		headers := biz.FromHttpRequestHeaders(r.Header)
@@ -93,7 +120,7 @@ func (s *Service) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 		bizRequest := &biz.ProxyHttpRequest{
 			Method:  r.Method,
-			URL:     url,
+			URL:     targetURL,
 			Headers: headers,
 			Host:    s.ReplaceHost,
 			Body:    body,

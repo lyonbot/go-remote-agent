@@ -122,21 +122,21 @@ func (c *ConnectionToAgent) communicate(agent_name string, agent_id string) erro
 			}
 
 		case data, ok := <-C_from_agent:
+			if !ok {
+				return errors.New("tunnel from agent closed")
+			}
+			isAboutToClean = false // reset watchdog on any received data
 			if len(data) >= 1 && data[0] == 0xff {
 				log.Printf("[agent '%s'] message: %s", agent_name, string(data[1:]))
 			} else if len(data) >= 5 {
 				idBytes := data[1:5]
 				id := binary.LittleEndian.Uint32(idBytes)
 				if ch, ok := c.R.Load(id); ok && ch != nil {
-					isAboutToClean = false
 					ch.(chan []byte) <- data
 				} else {
 					C_to_agent <- utils.JoinBytes2(0x22, idBytes) // close connection
 					log.Printf("[agent '%s'] bad proxy reqId 0x%x with package 0x%x", agent_name, id, data[0])
 				}
-			}
-			if !ok {
-				return errors.New("tunnel from agent closed")
 			}
 
 		case <-c.Ctx.Done():
