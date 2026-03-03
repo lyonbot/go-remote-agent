@@ -38,14 +38,15 @@ func RegisterFromConfigFile() {
 }
 
 func RegisterService(s Service) error {
-	_, existed := ProxyServices.LoadOrStore(s.Host, &s)
-	if existed {
-		return errors.New("proxy service host already existed")
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx = ctx
 	s.cancel = cancel
+
+	_, existed := ProxyServices.LoadOrStore(s.Host, &s)
+	if existed {
+		cancel()
+		return errors.New("proxy service host already existed")
+	}
 
 	log.Printf("register proxy service: %s --[%s]--> %s", s.Host, s.AgentName, s.Target)
 	return nil

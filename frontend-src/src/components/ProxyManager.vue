@@ -56,7 +56,10 @@ async function saveProxyList() {
     method: 'POST',
     headers: { 'X-API-Key': agentStore.apiKey }
   })
-  if (!res.ok) alert('Failed to save proxy list: ' + (await res.text()))
+  if (!res.ok) {
+    alert('Failed to save proxy list: ' + (await res.text()))
+    return
+  }
   alert('Saved')
 }
 </script>
@@ -111,7 +114,7 @@ async function saveProxyList() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="proxy in proxyList" :key="proxy.replace_host">
+          <tr v-for="proxy in proxyList" :key="proxy.host">
             <td>
               <a :href="protocol + '//' + proxy.host" target="_blank">
                 {{ proxy.host }}
@@ -120,7 +123,7 @@ async function saveProxyList() {
             <td>{{ proxy.agent_name }} ({{ proxy.agent_id }})</td>
             <td>{{ proxy.target }}</td>
             <td>
-              <button @click="deleteProxy(proxy.replace_host)" class="delete">Delete</button>
+              <button @click="deleteProxy(proxy.host)" class="delete">Delete</button>
               <button @click="copyProxyInfo(proxy)" class="copy">Copy Info</button>
             </td>
           </tr>
