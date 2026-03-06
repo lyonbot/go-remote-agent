@@ -1,4 +1,4 @@
-# agent: true
+# as_agent: true
 name: bot1
 base_url: http://localhost:8080
 proxy_services:
