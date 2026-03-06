@@ -141,7 +141,7 @@ function createTerminal() {
             @mousedown.prevent="keepDropdownOpen(); showHistory = !showHistory"
             class="absolute right-2 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg-dim transition-colors text-xs leading-none select-none"
             title="History"
-          >{{ showHistory ? '▴' : '▾' }}</button>
+          >{{ showHistory ? '▲' : '▼' }}</button>
 
           <!-- History dropdown -->
           <div

@@ -38,7 +38,7 @@ const confirm = (msg: string) => window.confirm(msg)
             </td>
             <td class="px-3 py-2 text-fg-dim text-xs font-mono">
               {{ proxy.agent_name }}
-              <span class="text-fg-subtle">({{ proxy.agent_id }})</span>
+              <span class="text-fg-subtle" v-if="proxy.agent_id">({{ proxy.agent_id }})</span>
             </td>
             <td class="px-3 py-2 text-fg-muted text-xs font-mono">{{ proxy.target }}</td>
             <td class="px-3 py-2">

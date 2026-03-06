@@ -148,7 +148,11 @@ Configure `proxy_server_host: "*.proxy.your-domain.com"` so short names like `fo
 ```nginx
 server {
     listen 80;
+    listen 44 ssl;
+
     server_name *.proxy.your-domain.com;
+    client_max_body_size 1000M;
+
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
@@ -158,6 +162,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_request_buffering off;
         proxy_buffering off;
 
         proxy_connect_timeout 7d;
