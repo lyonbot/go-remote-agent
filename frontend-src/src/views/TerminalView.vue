@@ -7,12 +7,17 @@ import FileTransferToolbar from '@/components/FileTransferToolbar.vue'
 
 const route = useRoute()
 const agentStore = useAgentStore()
-agentStore.reloadAgentInstances()
 
 const agentId = computed(() => Number(route.params.agentId))
-watchEffect(() => {
-  agentStore.selectedAgentId = agentId.value
-})
+watch(agentId, (id) => {
+  agentStore.selectedAgentId = id
+  agentStore.reloadAgentInstances().then(() => {
+    const id = agentId.value
+    const agent = agentStore.agentInstances.find(a => a.id === id)
+    if (!agent) return
+    if (agentStore.ptyService?.agentId !== id) agentStore.connectPtyService(agent)
+  })
+}, { immediate: true })
 </script>
 
 <template>

@@ -18,7 +18,7 @@ export class PtyService {
   public ws: WebSocket | null
 
   private term: Terminal | null
-  private connetcPromise: Promise<void> | null
+  private connectPromise: Promise<void> | null
   private msgHandlers: Array<(data: Uint8Array) => boolean>;
 
   public fs: FsService
@@ -29,7 +29,7 @@ export class PtyService {
     this.apiKey = apiKey
     this.ws = null
     this.term = null
-    this.connetcPromise = null
+    this.connectPromise = null
     this.msgHandlers = []
     this.connect()
 
@@ -40,8 +40,9 @@ export class PtyService {
     this.term = term
   }
 
+  /** wait for agent to connected */
   connect(): Promise<void> {
-    this.connetcPromise ||= new Promise((resolve, reject) => {
+    this.connectPromise ||= new Promise((resolve, reject) => {
       var url = `./api/agent/${this.agentName}/omni/?api_key=${encodeURIComponent(this.apiKey)}`
       if (this.agentId) {
         url += `&agent_id=${this.agentId}`
@@ -55,7 +56,7 @@ export class PtyService {
       this.ws.onerror = (err: Event) => {
         reject(err)
         if (this.ws === ws) {
-          this.connetcPromise = null
+          this.connectPromise = null
           this.ws = null
         }
       }
@@ -63,10 +64,10 @@ export class PtyService {
       this.ws.onmessage = this.handleMessage.bind(this)
       this.ws.onclose = () => {
         this.term?.write(`\x1B[1;3;31m[${this.agentName}]\x1B[0m Connection Closed\r\n`)
-        this.connetcPromise = null
+        this.connectPromise = null
       }
     })
-    return this.connetcPromise
+    return this.connectPromise
   }
 
   close(): void {
