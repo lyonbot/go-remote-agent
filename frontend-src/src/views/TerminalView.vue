@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, watchEffect } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
 import TerminalContainer from '@/components/TerminalContainer.vue'
@@ -9,13 +9,20 @@ const route = useRoute()
 const agentStore = useAgentStore()
 
 const agentId = computed(() => Number(route.params.agentId))
+const isConnecting = ref(true)
 watch(agentId, (id) => {
   agentStore.selectedAgentId = id
   agentStore.reloadAgentInstances().then(() => {
     const id = agentId.value
     const agent = agentStore.agentInstances.find(a => a.id === id)
     if (!agent) return
-    if (agentStore.ptyService?.agentId !== id) agentStore.connectPtyService(agent)
+    if (agentStore.ptyService?.agentId !== id) {
+      agentStore.connectPtyService(agent)
+      isConnecting.value = true
+    }
+    agentStore.ptyService?.connect().then(() => {
+      isConnecting.value = false
+    })
   })
 }, { immediate: true })
 </script>

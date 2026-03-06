@@ -108,7 +108,7 @@ export class FsService {
     }
 
     const filename = info.path.split('/').pop() || 'download'
-    const file = new File(chunks, filename, {
+    const file = new File(chunks as BlobPart[], filename, {
       lastModified: info.mtime * 1000,
       type: 'application/octet-stream'
     })
