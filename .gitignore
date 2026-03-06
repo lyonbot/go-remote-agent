@@ -1,4 +1,5 @@
 agent_linux_amd64
+agent_host
 remote-agent
 .DS_Store
 .playwright-mcp

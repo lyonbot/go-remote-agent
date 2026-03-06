@@ -4,6 +4,7 @@ SESSION := go-remote-agent
 
 build:
 	cd frontend-src && pnpm install && pnpm build
+	go build -ldflags "-s -w" -tags release -o agent_host
 	GOARCH=amd64 GOOS=linux go build -ldflags "-s -w" -tags release -o agent_linux_amd64 .
 
 dev:
