@@ -47,8 +47,8 @@ watch(agentId, (id) => {
     </div>
     <!-- Tab content -->
     <div class="flex-1 min-h-0 relative">
-      <TerminalContainer v-show="activeTab === 'terminal'" class="absolute inset-0" />
-      <FileSystemContainer v-show="activeTab === 'files'" class="absolute inset-0" />
+      <TerminalContainer v-show="activeTab === 'terminal'" class="absolute inset-0 contain-layout" />
+      <FileSystemContainer v-show="activeTab === 'files'" class="absolute inset-0 contain-layout" />
     </div>
     <FileTransferToolbar class="shrink-0" />
   </div>
