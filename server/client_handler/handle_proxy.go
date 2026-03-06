@@ -9,14 +9,26 @@ import (
 	"strings"
 )
 
+func HandleConfigProxies(w http.ResponseWriter, r *http.Request) {
+	if block_if_request_api_key_bad(w, r) {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"proxyServerHost": biz.Config.ProxyServerHost,
+	})
+}
+
 func HandleProxyListAll(w http.ResponseWriter, r *http.Request) {
 	if block_if_request_api_key_bad(w, r) {
 		return
 	}
 
-	list := make([]proxy.Service, 0)
-	proxy.ProxyServices.Range(func(key, value interface{}) bool {
-		list = append(list, *value.(*proxy.Service))
+	list := make([]proxy.ServiceInfo, 0)
+	proxy.ProxyServices.Range(func(key, value any) bool {
+		list = append(list, value.(*proxy.Service).ServiceInfo)
 		return true
 	})
 
@@ -41,43 +53,61 @@ func HandleProxyEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	var err error
+
+	writeError := func(status int, err error) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	}
 
 	switch r.Method {
 	case http.MethodPost:
-		err = func() error {
-			srv := proxy.Service{
-				Host:        host,
-				AgentName:   r.PostFormValue("agent_name"),
-				AgentId:     r.PostFormValue("agent_id"),
-				Target:      r.PostFormValue("target"),
-				ReplaceHost: r.PostFormValue("replace_host"),
-			}
+		srv := proxy.ServiceInfo{
+			Host:        host,
+			AgentName:   r.PostFormValue("agent_name"),
+			AgentId:     r.PostFormValue("agent_id"),
+			Target:      r.PostFormValue("target"),
+			ReplaceHost: r.PostFormValue("replace_host"),
+		}
 
-			srv.Target = strings.TrimSpace(srv.Target)
-			if srv.Target == "" {
-				return errors.New("target is required")
-			}
-			if !strings.HasPrefix(srv.Target, "http://") && !strings.HasPrefix(srv.Target, "https://") {
-				srv.Target = "http://" + srv.Target
-			}
+		srv.Target = strings.TrimSpace(srv.Target)
+		if srv.Target == "" {
+			writeError(http.StatusBadRequest, errors.New("target is required"))
+			return
+		}
+		if !strings.HasPrefix(srv.Target, "http://") && !strings.HasPrefix(srv.Target, "https://") {
+			srv.Target = "http://" + srv.Target
+		}
+		if srv.AgentId == "" && srv.AgentName == "" {
+			writeError(http.StatusBadRequest, errors.New("agent_id or agent_name is required"))
+			return
+		}
+		if err := proxy.RegisterService(srv); err != nil {
+			writeError(http.StatusConflict, err)
+			return
+		}
+		biz.Config.ProxyServices = append(biz.Config.ProxyServices, biz.SavedProxyConfig{
+			Host:        srv.Host,
+			AgentName:   srv.AgentName,
+			Target:      srv.Target,
+			ReplaceHost: srv.ReplaceHost,
+		})
 
-			if srv.AgentId == "" && srv.AgentName == "" {
-				return errors.New("agent_id or agent_name is required")
-			}
-
-			return proxy.RegisterService(srv)
-		}()
 	case http.MethodDelete:
-		err = proxy.KillService(host)
-	default:
-		err = errors.New("method not allowed")
-	}
+		if err := proxy.KillService(host); err != nil {
+			writeError(http.StatusNotFound, err)
+			return
+		}
+		filtered := biz.Config.ProxyServices[:0]
+		for _, s := range biz.Config.ProxyServices {
+			if s.Host != host {
+				filtered = append(filtered, s)
+			}
+		}
+		biz.Config.ProxyServices = filtered
 
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	default:
+		writeError(http.StatusMethodNotAllowed, errors.New("method not allowed"))
 		return
 	}
 

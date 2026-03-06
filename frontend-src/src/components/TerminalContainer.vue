@@ -61,6 +61,16 @@ const form = ref({
 // ─── Launch ───────────────────────────────────────────────────────────────
 const termOptions = ref<PtyTermOptions>()
 const created = ref(false)
+const ptyClosed = ref(false)
+
+function onPtyClosed() {
+  ptyClosed.value = true
+}
+
+function reconnect() {
+  created.value = false
+  ptyClosed.value = false
+}
 
 function createTerminal() {
   if (created.value) return
@@ -183,8 +193,19 @@ function createTerminal() {
       <button type="submit" class="btn btn-primary mt-1">Launch Terminal</button>
     </form>
 
-    <div v-if="created && termOptions" class="flex-1 min-h-0 p-4">
-      <Terminal :options="termOptions" />
+    <div v-if="created && termOptions" class="flex-1 min-h-0 relative">
+      <div class="absolute inset-0 p-4">
+        <Terminal :options="termOptions" @pty-closed="onPtyClosed" />
+      </div>
+      <div
+        v-if="ptyClosed"
+        class="absolute inset-0 flex items-end justify-center pb-8 pointer-events-none"
+      >
+        <button
+          @click="reconnect"
+          class="btn btn-primary pointer-events-auto shadow-lg"
+        >Reconnect</button>
+      </div>
     </div>
   </div>
 </template>

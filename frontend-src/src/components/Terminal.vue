@@ -10,6 +10,8 @@ const props = defineProps({
   options: { type: Object as PropType<PtyTermOptions>, required: true },
 })
 
+const emit = defineEmits<{ 'pty-closed': [] }>()
+
 const terminalRef = ref(null)
 
 const term = new Terminal()
@@ -35,6 +37,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
 
   ptyService.value.setTerm(term)
+  ptyService.value.onPtyClosed = () => emit('pty-closed')
   ptyService.value.connect().then(() => {
     ptyService.value.createPty(props.options)
     handleResize()
@@ -43,6 +46,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   ptyService.value.setTerm(null)
+  ptyService.value.onPtyClosed = undefined
   term.dispose()
 })
 </script>

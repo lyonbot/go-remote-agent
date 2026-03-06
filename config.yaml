@@ -3,7 +3,7 @@ as_agent: false
 addr: 0.0.0.0
 port: 8080
 api_key: ""
-proxy_server_host: ""
+proxy_server_host: "*.agent.local"
 proxy_services:
     - host: foobar.com
       agent_name: bot1

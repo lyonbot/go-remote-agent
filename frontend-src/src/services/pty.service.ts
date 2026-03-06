@@ -16,6 +16,7 @@ export class PtyService {
   public agentId?: number
   public apiKey: string
   public ws: WebSocket | null
+  public onPtyClosed?: () => void
 
   private term: Terminal | null
   private connectPromise: Promise<void> | null
@@ -99,6 +100,7 @@ export class PtyService {
         break
       case RecvMessageType.PtyClosed:
         this.term?.write(`\x1B[1;3;31m[${this.agentName}]\x1B[0m Pty Closed, connection intact.\r\n`)
+        this.onPtyClosed?.()
         break
       case RecvMessageType.Log:
         console.log(new TextDecoder().decode(data.slice(1)))

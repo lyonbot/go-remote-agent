@@ -2,11 +2,13 @@
 import { computed, ref } from 'vue'
 import { useAgentStore } from '@/stores/agent'
 import type { AgentDef } from '@/stores/agent'
+import { useConfigStore } from '@/stores/config'
 import { UpgradeService } from '@/services/upgrade.service'
 
 const props = defineProps<{ agentInstance?: AgentDef }>()
 
 const agentStore = useAgentStore()
+const configStore = useConfigStore()
 
 const showDialog = ref(false)
 const logs = ref('')
@@ -15,7 +17,7 @@ async function startUpgrade() {
   const { agentInstance } = props
   if (!agentInstance) return
 
-  const upgradeService = new UpgradeService(agentStore.apiKey)
+  const upgradeService = new UpgradeService(configStore.apiKey)
   showDialog.value = true
   logs.value = `agent: ${agentInstance.name}\n`
   logs.value += `agent_id: ${agentInstance.id}\n\n`

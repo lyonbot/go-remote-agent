@@ -24,7 +24,7 @@ func HandleProxyRequest(w http.ResponseWriter, r *http.Request) {
 
 func RegisterFromConfigFile() {
 	for _, service := range biz.Config.ProxyServices {
-		s := Service{
+		s := ServiceInfo{
 			Host:        service.Host,
 			AgentName:   service.AgentName,
 			Target:      service.Target,
@@ -37,7 +37,10 @@ func RegisterFromConfigFile() {
 	}
 }
 
-func RegisterService(s Service) error {
+func RegisterService(info ServiceInfo) error {
+	s := Service{
+		ServiceInfo: info,
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx = ctx
 	s.cancel = cancel

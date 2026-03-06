@@ -7,6 +7,8 @@ const proxyStore = useProxyStore()
 const protocol = location.protocol
 
 onMounted(proxyStore.refreshProxyList)
+
+const confirm = (msg: string) => window.confirm(msg)
 </script>
 
 <template>
@@ -42,7 +44,8 @@ onMounted(proxyStore.refreshProxyList)
             <td class="px-3 py-2">
               <div class="flex gap-1.5">
                 <button @click="proxyStore.openNewProxy({ ...proxy })" class="btn-sm btn-ghost">Copy</button>
-                <button @click="proxyStore.deleteProxy(proxy.host)" class="btn-sm btn-danger">Del</button>
+                <button @click="confirm(`Delete proxy ${proxy.host}?`) && proxyStore.deleteProxy(proxy.host)" class="btn-sm btn-danger">Del</button>
+                <button @click="proxyStore.recreateProxy(proxy)" class="btn-sm btn-warning">Recreate</button>
               </div>
             </td>
           </tr>

@@ -5,7 +5,7 @@
       <input
         id="api-key-field"
         type="password"
-        v-model="agentStore.apiKey"
+        v-model="configStore.apiKey"
         placeholder="API Key"
         autocomplete="current-password"
         class="field flex-1"
@@ -65,6 +65,7 @@
 <script setup lang="ts">
 import { useAgentStore } from '../stores/agent'
 import type { AgentDef } from '../stores/agent'
+import { useConfigStore } from '../stores/config'
 import UpgradeButton from './UpgradeButton.vue'
 
 const props = defineProps<{
@@ -78,6 +79,7 @@ const emit = defineEmits<{
 }>()
 
 const agentStore = useAgentStore()
+const configStore = useConfigStore()
 
 agentStore.reloadAgentInstances()
 

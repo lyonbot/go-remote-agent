@@ -77,7 +77,9 @@ Examples: `btn btn-primary`, `btn-sm btn-ghost`, `btn-sm btn-danger`
 | `src/components/Terminal.vue` | xterm.js mount, WebSocket PTY integration |
 | `src/components/FileTransferToolbar.vue` | Upload/download via binary WebSocket protocol |
 | `src/components/FileSystemContainer.vue` | Tree-view file browser: expand dirs, double-click to edit, drag-drop upload, right-click menu |
-| `src/stores/agent.ts` | Pinia: apiKey, agentInstances, ptyService |
+| `src/stores/agent.ts` | Pinia: agentInstances, ptyService |
+| `src/stores/config.ts` | Pinia: apiKey (persisted to localStorage), server config |
+| `src/stores/proxy.ts` | Pinia: proxy list CRUD, dialog state |
 | `src/services/pty.service.ts` | WebSocket + MessagePack PTY protocol |
 | `src/services/fs.service.ts` | Chunked binary file transfer + dir listing / delete / mkdir over PTY socket |
 | `src/services/proxy.service.ts` | REST client for proxy management API |

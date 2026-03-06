@@ -12,13 +12,17 @@ import (
 	"sync/atomic"
 )
 
-type Service struct {
+type ServiceInfo struct {
 	Host      string `json:"host"`
 	AgentName string `json:"agent_name"`
 	AgentId   string `json:"agent_id"`
 
 	Target      string `json:"target"`
 	ReplaceHost string `json:"replace_host"`
+}
+
+type Service struct {
+	ServiceInfo
 
 	ctx    context.Context
 	cancel context.CancelFunc

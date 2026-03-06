@@ -13,6 +13,13 @@ export class ProxyService {
     this.apiKey = apiKey
   }
 
+  async loadConfigProxies(): Promise<Omit<ProxyDef, 'agent_id'>[]> {
+    const res = await fetch(`./api/configProxies`, {
+      headers: { 'X-API-Key': this.apiKey }
+    })
+    return await res.json()
+  }
+
   async loadProxyList(): Promise<ProxyDef[]> {
     const res = await fetch(`./api/proxy/`, {
       headers: { 'X-API-Key': this.apiKey }

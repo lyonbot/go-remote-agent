@@ -21,4 +21,4 @@ dev:
 	@tmux send-keys -t $(SESSION):0.2 "cd frontend-src && pnpm dev" Enter
 	@sleep 1
 	@tmux send-keys -t $(SESSION):0.1 "go run main.go -a" Enter
-	echo $$ tmux attach-session -t $(SESSION)
+	@echo $$ tmux attach-session -t $(SESSION)

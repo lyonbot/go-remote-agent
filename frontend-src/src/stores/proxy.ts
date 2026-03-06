@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { effect, ref } from 'vue'
 import { useAgentStore } from './agent'
+import { useConfigStore } from './config'
 import { type ProxyDef, ProxyService } from '../services/proxy.service'
 
 export const useProxyStore = defineStore('proxy', () => {
   const agentStore = useAgentStore()
-  const proxyService = new ProxyService(agentStore.apiKey)
-  effect(() => { proxyService.apiKey = agentStore.apiKey })
+  const configStore = useConfigStore()
+  const proxyService = new ProxyService(configStore.apiKey)
+  effect(() => { proxyService.apiKey = configStore.apiKey })
 
   const proxyList = ref<ProxyDef[]>([])
 
@@ -24,10 +26,17 @@ export const useProxyStore = defineStore('proxy', () => {
     await refreshProxyList()
   }
 
+  async function recreateProxy(proxy: ProxyDef) {
+    await proxyService.deleteProxy(proxy.host)
+    await new Promise(r => setTimeout(r, 500))
+    await proxyService.createProxy(proxy)
+    await refreshProxyList()
+  }
+
   async function saveProxyList() {
     const res = await fetch(`./api/saveConfig`, {
       method: 'POST',
-      headers: { 'X-API-Key': agentStore.apiKey }
+      headers: { 'X-API-Key': configStore.apiKey }
     })
     if (!res.ok) {
       alert('Failed to save proxy list: ' + (await res.text()))
@@ -57,6 +66,7 @@ export const useProxyStore = defineStore('proxy', () => {
     refreshProxyList,
     createProxy,
     deleteProxy,
+    recreateProxy,
     saveProxyList,
     dialogOpen,
     dialogPrefill,
