@@ -45,6 +45,13 @@ export class FsService {
       case RecvMessageType.FileChunkRead:
         this.handleDownloadChunk(view, data)
         break
+      case RecvMessageType.FileDirList:
+        this.handleDirList(data)
+        break
+      case RecvMessageType.FileDeleted:
+      case RecvMessageType.FileMkdirDone:
+        this.handlePathResponse(data)
+        break
       default:
         return false
     }
@@ -60,6 +67,22 @@ export class FsService {
   private handleFileInfo(data: Uint8Array): void {
     const info = MessagePack.decode(new Uint8Array(data.slice(1))) as FileInfo
     this.resolvePromise(`getFileInfo:${info.path}`, info)
+  }
+
+  private handleDirList(data: Uint8Array): void {
+    // protocol: [0x13] + uint16LE(pathLen) + path + msgpack([]FileInfo)
+    const view = new DataView(data.buffer, data.byteOffset)
+    const pathLen = view.getUint16(1, true)
+    const path = new TextDecoder().decode(data.slice(3, 3 + pathLen))
+    const items = MessagePack.decode(new Uint8Array(data.slice(3 + pathLen))) as FileInfo[]
+    this.resolvePromise(`listDir:${path}`, items)
+  }
+
+  private handlePathResponse(data: Uint8Array): void {
+    const typeId = data[0]
+    const path = new TextDecoder().decode(data.slice(1))
+    const prefix = typeId === RecvMessageType.FileDeleted ? 'deleteFile' : 'mkdir'
+    this.resolvePromise(`${prefix}:${path}`)
   }
 
   private handleDownloadChunk(view: DataView, data: Uint8Array): void {
@@ -137,6 +160,44 @@ export class FsService {
 
     this.pty.ws?.send(payload.buffer)
     await promise
+  }
+
+  async listDir(path: string): Promise<FileInfo[]> {
+    const promise = this.makePromise(`listDir:${path}`)
+    this.pty.ws?.send(new TextEncoder().encode(`${String.fromCharCode(SendMessageType.FileListDir)}${path}`))
+    return await promise
+  }
+
+  async deleteFile(path: string): Promise<void> {
+    const promise = this.makePromise(`deleteFile:${path}`)
+    this.pty.ws?.send(new TextEncoder().encode(`${String.fromCharCode(SendMessageType.FileDelete)}${path}`))
+    await promise
+  }
+
+  async mkdir(path: string): Promise<void> {
+    const promise = this.makePromise(`mkdir:${path}`)
+    this.pty.ws?.send(new TextEncoder().encode(`${String.fromCharCode(SendMessageType.FileMkdir)}${path}`))
+    await promise
+  }
+
+  async readTextFile(path: string): Promise<string> {
+    const info = await this.getFileInfo(path)
+    const chunks: Uint8Array[] = []
+    for (let offset = 0; offset < info.size;) {
+      const chunk = await this.downloadFileChunk(path, offset)
+      if (chunk.data.length === 0) break
+      chunks.push(chunk.data)
+      offset += chunk.data.length
+    }
+    const all = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0))
+    let pos = 0
+    for (const c of chunks) { all.set(c, pos); pos += c.length }
+    return new TextDecoder().decode(all)
+  }
+
+  async writeTextFile(path: string, content: string): Promise<void> {
+    const data = new TextEncoder().encode(content)
+    await this.uploadFile(path, data, {})
   }
 
   async uploadFile(path: string, data: Uint8Array, options: TransferFileOptions): Promise<void> {

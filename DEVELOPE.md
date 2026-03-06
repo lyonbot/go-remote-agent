@@ -36,7 +36,7 @@ agent/
   agent_omni/
     main.go                 # omni session entry; handler dispatch table [256]func
     pty.go                  # PTY allocation (creack/pty)
-    file.go                 # chunked file read/write
+    file.go                 # chunked file read/write, dir listing, delete, mkdir
     proxy.go                # TCP / HTTP / WebSocket proxying
   agent_upgrade/
     main.go                 # binary self-upgrade
@@ -170,14 +170,24 @@ Over tunnel WebSocket (also used directly by `/api/agent/{name}/omni/`).
 
 ### File Transfer
 
+All integers in file messages are **little-endian**. `FileInfo` msgpack fields: `path string`, `size int64`, `mode uint32` (Go `os.FileMode`; bit 31 set = directory), `mtime int64` (Unix seconds).
+
 | Dir | Byte | Payload | Description |
 |-----|------|---------|-------------|
 | S→A | `0x10` | `<u64 offset> <u64 length> <path> <data>` | Write chunk (empty data = truncate to offset) |
 | S→A | `0x11` | `<path>` | Query file info |
 | S→A | `0x12` | `<u64 offset> <u64 length> <path>` | Request read chunk |
+| S→A | `0x13` | `<path>` | List directory |
+| S→A | `0x14` | `<path>` | Delete file or directory (`os.RemoveAll`) |
+| S→A | `0x15` | `<path>` | Create directory (`os.MkdirAll`) |
 | A→S | `0x10` | `<u64 offset> <path>` | Write acknowledged |
 | A→S | `0x11` | `<msgpack FileInfo>` | File info response |
 | A→S | `0x12` | `<u64 offset> <u64 length> <path> <data>` | Read chunk |
+| A→S | `0x13` | `<u16 pathLen> <path> <msgpack []FileInfo>` | Directory listing |
+| A→S | `0x14` | `<path>` | Delete acknowledged |
+| A→S | `0x15` | `<path>` | Mkdir acknowledged |
+
+On error for any file operation the agent sends `0xff <message>` (debug log) instead of the ack.
 
 ### TCP / HTTP Proxy
 

@@ -3,8 +3,11 @@ package agent_omni
 import (
 	"encoding/binary"
 	"os"
+	"path/filepath"
 	"remote-agent/biz"
 	"remote-agent/utils"
+
+	"github.com/tinylib/msgp/msgp"
 )
 
 func (s *PtySession) SetupFileTransfer() {
@@ -47,6 +50,58 @@ func (s *PtySession) SetupFileTransfer() {
 			return
 		}
 		s.Write(utils.PrependBytes([]byte{0x11}, msg_bytes))
+	}
+
+	// list directory
+	// response: [0x13] + uint16LE(pathLen) + path + msgpack([]FileInfo)
+	s.Handlers[0x13] = func(recv []byte) {
+		path := string(recv[1:])
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			s.WriteDebugMessage(err.Error())
+			return
+		}
+
+		pathBytes := []byte(path)
+		pathLen := make([]byte, 2)
+		binary.LittleEndian.PutUint16(pathLen, uint16(len(pathBytes)))
+
+		var msgpData []byte
+		msgpData = msgp.AppendArrayHeader(msgpData, uint32(len(entries)))
+		for _, entry := range entries {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			item := biz.FileInfo{
+				Path:  filepath.Join(path, entry.Name()),
+				Size:  info.Size(),
+				Mode:  uint32(info.Mode()),
+				Mtime: info.ModTime().Unix(),
+			}
+			msgpData, _ = item.MarshalMsg(msgpData)
+		}
+		s.Write(utils.JoinBytes2(0x13, pathLen, pathBytes, msgpData))
+	}
+
+	// delete file or directory
+	s.Handlers[0x14] = func(recv []byte) {
+		path := string(recv[1:])
+		if err := os.RemoveAll(path); err != nil {
+			s.WriteDebugMessage(err.Error())
+			return
+		}
+		s.Write(utils.PrependBytes([]byte{0x14}, []byte(path)))
+	}
+
+	// create directory
+	s.Handlers[0x15] = func(recv []byte) {
+		path := string(recv[1:])
+		if err := os.MkdirAll(path, 0755); err != nil {
+			s.WriteDebugMessage(err.Error())
+			return
+		}
+		s.Write(utils.PrependBytes([]byte{0x15}, []byte(path)))
 	}
 
 	// read file chunk

@@ -21,6 +21,9 @@ export enum SendMessageType {
   FileWriteOrTruncate = 0x10,
   FileQueryInfo = 0x11,
   FileRead = 0x12,
+  FileListDir = 0x13,
+  FileDelete = 0x14,
+  FileMkdir = 0x15,
 }
 
 export enum RecvMessageType {
@@ -33,4 +36,7 @@ export enum RecvMessageType {
   FileWritten = 0x10,
   FileInfo = 0x11,
   FileChunkRead = 0x12,
+  FileDirList = 0x13,
+  FileDeleted = 0x14,
+  FileMkdirDone = 0x15,
 }
