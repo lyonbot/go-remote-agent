@@ -1,8 +1,13 @@
-# as_agent: true
 name: bot1
-base_url: http://localhost:8080
+as_agent: false
+addr: 0.0.0.0
+port: 8080
+api_key: ""
+proxy_server_host: ""
 proxy_services:
-  - host: foobar.com
-    replace_host: foobar.com
-    agent_name: bot1
-    target: http://127.0.0.1:8765
+    - host: foobar.com
+      agent_name: bot1
+      target: http://127.0.0.1:8765
+      replace_host: foobar.com
+base_url: http://localhost:8080
+insecure: false

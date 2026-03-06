@@ -1,3 +1,10 @@
 agent_linux_amd64
 remote-agent
 .DS_Store
+.playwright-mcp
+node_modules/
+dist/
+*.log
+*.tar.gz
+*.tgz
+# package-lock.json

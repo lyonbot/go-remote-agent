@@ -1,144 +1,89 @@
 <template>
-  <div class="agent-list">
-    <form class="api-key-input" @submit.prevent="agentStore.reloadAgentInstances()">
-      <input type="password" v-model="agentStore.apiKey" placeholder="Enter API Key">
-      <button @click="agentStore.reloadAgentInstances()">Fetch List</button>
-      <button @click="agentStore.connectPtyService()" :disabled="!!agentStore.ptyService">Connect</button>
-      <UpgradeButton />
+  <div class="flex flex-col h-full">
+    <form class="flex gap-2 mb-3 shrink-0 items-center" @submit.prevent="agentStore.reloadAgentInstances()" aria-label="API 配置">
+      <label for="api-key-field" class="sr-only">API Key</label>
+      <input
+        id="api-key-field"
+        type="password"
+        v-model="agentStore.apiKey"
+        placeholder="API Key"
+        autocomplete="current-password"
+        class="field flex-1"
+      >
+      <button type="submit" class="btn btn-ghost">Fetch</button>
+      <button
+        type="button"
+        @click="handleConnect"
+        :disabled="!props.selectedAgent || !!agentStore.ptyService"
+        :aria-disabled="!props.selectedAgent || !!agentStore.ptyService"
+        class="btn btn-primary"
+      >Connect</button>
+      <UpgradeButton :agentInstance="props.selectedAgent" />
     </form>
 
-    <div class="agents">
-      <div v-for="agent in agentStore.agentInstances" :key="agent.id" class="agent-item"
-        :class="{ active: agent.id === agentStore.agentId }" @click="agentStore.agentId = agent.id"
-        @dblclick="agentStore.connectPtyService()">
-        <div class="agent-header">
-          <div class="agent-name">{{ agent.name }}</div>
-          <div class="agent-id">id: {{ agent.id }}</div>
-          <div class="agent-badge" v-if="agent.is_upgradable">可升级</div>
+    <ul class="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0" role="listbox" aria-label="Agent 列表">
+      <li
+        v-for="agent in agentStore.agentInstances"
+        :key="agent.id"
+        role="option"
+        :aria-selected="agent.id === props.selectedAgentId"
+        :class="[
+          'p-3 rounded-lg border cursor-pointer transition-colors outline-none',
+          agent.id === props.selectedAgentId
+            ? 'border-primary bg-raised'
+            : 'border-border hover:bg-raised/60 hover:border-border-strong'
+        ]"
+        @click="emit('update:selectedAgentId', agent.id)"
+        @dblclick="emit('connect', agent)"
+        @keydown.enter="emit('update:selectedAgentId', agent.id)"
+        @keydown.space.prevent="emit('update:selectedAgentId', agent.id)"
+        tabindex="0"
+      >
+        <div class="flex gap-2 items-center mb-1.5">
+          <span class="font-semibold text-fg text-sm">{{ agent.name }}</span>
+          <span class="text-xs font-mono text-fg-muted bg-control/60 px-1.5 py-0.5 rounded" :aria-label="`Agent ID: ${agent.id}`">
+            #{{ agent.id }}
+          </span>
+          <span v-if="agent.is_upgradable" role="status" class="text-xs bg-warning text-white px-1.5 py-0.5 rounded">
+            可升级
+          </span>
         </div>
-        <div class="agent-details">
-          <div class="agent-info">
-            <span class="join-time">加入时间：{{ new Date(agent.join_at).toLocaleString() }}</span>
-            <span class="remote-addr">IP：{{ agent.remote_addr }}</span>
+        <div class="flex flex-col gap-0.5">
+          <div class="flex gap-3 text-xs text-fg-muted font-mono">
+            <span>{{ new Date(agent.join_at).toLocaleString() }}</span>
+            <span>{{ agent.remote_addr }}</span>
           </div>
-          <div class="agent-ua">{{ agent.user_agent }}</div>
+          <div class="text-xs text-fg-subtle truncate font-mono" :title="agent.user_agent">
+            {{ agent.user_agent }}
+          </div>
         </div>
-      </div>
-    </div>
+      </li>
+    </ul>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useAgentStore } from '../stores/agent'
-import UpgradeButton from './UpgradeButton.vue';
+import type { AgentDef } from '../stores/agent'
+import UpgradeButton from './UpgradeButton.vue'
+
+const props = defineProps<{
+  selectedAgentId: number
+  selectedAgent?: AgentDef
+}>()
+
+const emit = defineEmits<{
+  'update:selectedAgentId': [id: number]
+  'connect': [agent: AgentDef]
+}>()
 
 const agentStore = useAgentStore()
 
 agentStore.reloadAgentInstances()
+
+function handleConnect() {
+  if (props.selectedAgent) {
+    emit('connect', props.selectedAgent)
+  }
+}
 </script>
-
-<style scoped>
-.agent-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.api-key-input {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  flex-shrink: 0;
-}
-
-.api-key-input input {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.api-key-input button {
-  padding: 0.5rem 1rem;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.api-key-input button:hover {
-  background: #45a049;
-}
-
-.agents {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1 0 0;
-  overflow-y: auto;
-}
-
-.agent-item {
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.agent-item:hover {
-  background: #f5f5f5;
-}
-
-.agent-item.active {
-  border-color: #4CAF50;
-  background: #e8f5e9;
-}
-
-.agent-name {
-  font-weight: bold;
-}
-
-.agent-id {
-  font-size: 0.8em;
-  color: #888;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: #f5f5f5;
-}
-
-.agent-header {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.agent-badge {
-  background: #ff9800;
-  color: white;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8em;
-}
-
-.agent-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.agent-ua {
-  font-size: 0.85em;
-  color: #888;
-  word-break: break-all;
-}
-
-.agent-info,
-.join-time,
-.remote-addr {
-  display: block;
-  font-size: 0.9em;
-  color: #666;
-}
-</style>

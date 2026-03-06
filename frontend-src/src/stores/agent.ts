@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { PtyService } from '../services/pty.service'
 
 export interface AgentDef {
@@ -14,10 +14,8 @@ export interface AgentDef {
 export const useAgentStore = defineStore('agent', () => {
   const apiKey = ref(localStorage.getItem('api_key') || '')
   const agentInstances = ref<AgentDef[]>([])
-  const agentId = ref(-1)
-
-  const agentInstance = computed(() => agentInstances.value.find(x => x.id === agentId.value))
-  const agentName = computed(() => agentInstance.value?.name)
+  const selectedAgentId = ref(-1)
+  const selectedAgent = computed(() => agentInstances.value.find(a => a.id === selectedAgentId.value))
 
   const ptyService = shallowRef<PtyService | null>(null)
 
@@ -34,28 +32,24 @@ export const useAgentStore = defineStore('agent', () => {
     }
   }
 
-  function connectPtyService() {
+  function connectPtyService(agent: AgentDef) {
     if (ptyService.value) {
       ptyService.value.close()
       ptyService.value = null
       return
     }
 
-    if (agentInstance.value) {
-      const newPtyService = new PtyService(apiKey.value, agentInstance.value.name, agentInstance.value.id)
-      newPtyService.connect()
-      ptyService.value = newPtyService
-    }
+    const newPtyService = new PtyService(apiKey.value, agent.name, agent.id)
+    newPtyService.connect()
+    ptyService.value = newPtyService
   }
 
   return {
     apiKey,
     agentInstances,
-    agentId,
-    agentInstance,
-    agentName,
+    selectedAgentId,
+    selectedAgent,
     reloadAgentInstances,
-
     ptyService,
     connectPtyService,
   }

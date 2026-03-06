@@ -1,130 +1,49 @@
 <script lang="ts" setup>
-import { effect, onMounted, ref, watch } from 'vue'
-import { useAgentStore } from '@/stores/agent'
-import { type ProxyDef, ProxyService } from '@/services/proxy.service'
-const agentStore = useAgentStore()
+import { onMounted } from 'vue'
+import { useProxyStore } from '@/stores/proxy'
 
-const proxyService = new ProxyService(agentStore.apiKey)
-effect(() => { proxyService.apiKey = agentStore.apiKey })
-
-const proxyList = ref<ProxyDef[]>([])
-async function refreshProxyList() {
-  proxyList.value = await proxyService.loadProxyList() || []
-}
-onMounted(refreshProxyList)
-
-const initialForm: ProxyDef = {
-  host: '',
-  agent_name: '',
-  agent_id: '',
-  target: 'http://127.0.0.1:8080',
-  replace_host: ''
-}
-const newProxy = ref<ProxyDef>({ ...initialForm })
+const proxyStore = useProxyStore()
 
 const protocol = location.protocol
 
-effect(() => { newProxy.value.agent_name = agentStore.agentInstance?.name || '' })
-
-async function handleSubmit() {
-  try {
-    await proxyService.createProxy(newProxy.value)
-    await refreshProxyList()
-    // Reset form
-    newProxy.value = { ...initialForm }
-  } catch (error) {
-    console.error('Failed to create proxy:', error)
-    alert('Failed to create proxy: ' + error)
-  }
-}
-
-async function deleteProxy(host: string) {
-  try {
-    await proxyService.deleteProxy(host)
-    await refreshProxyList()
-  } catch (error) {
-    console.error('Failed to delete proxy:', error)
-  }
-}
-
-function copyProxyInfo(proxy: ProxyDef) {
-  Object.assign(newProxy.value, proxy)
-}
-
-async function saveProxyList() {
-  const res = await fetch(`./api/saveConfig`, {
-    method: 'POST',
-    headers: { 'X-API-Key': agentStore.apiKey }
-  })
-  if (!res.ok) {
-    alert('Failed to save proxy list: ' + (await res.text()))
-    return
-  }
-  alert('Saved')
-}
+onMounted(proxyStore.refreshProxyList)
 </script>
 
 <template>
-  <div class="proxy-manager">
-    <div class="proxy-form section">
-      <h2>Create New Proxy</h2>
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label>Hostname:</label>
-          <input v-model="newProxy.host" required placeholder="e.g., example.com">
-        </div>
-        <div class="form-group">
-          <label>Agent Name:</label>
-          <input v-model="newProxy.agent_name" required>
-          <button type="button" @click="newProxy.agent_name = String(agentStore.agentInstance?.name)">Current</button>
-        </div>
-        <div class="form-group">
-          <label>Agent ID:</label>
-          <input v-model="newProxy.agent_id">
-          <button type="button" @click="newProxy.agent_id = String(agentStore.agentInstance?.id || '')">Current</button>
-        </div>
-        <div class="form-group">
-          <label>Target:</label>
-          <input v-model="newProxy.target" required placeholder="e.g., http://target-server.com">
-        </div>
-        <div class="form-group">
-          <label>Replace Host:</label>
-          <input v-model="newProxy.replace_host" required>
-          <button type="button" @click="newProxy.replace_host = newProxy.host">HostName</button>
-          <button type="button"
-            @click="newProxy.replace_host = newProxy.target.replace(/^\w+:?\/+/, '').replace(/\/.*$/, '')">Target</button>
-        </div>
-        <button type="submit">Create Proxy</button>
-      </form>
+  <div class="panel p-4 flex flex-col overflow-hidden h-full">
+    <div class="flex items-center gap-2 mb-4 shrink-0">
+      <h2 class="section-title flex-1">Proxies</h2>
+      <button @click="proxyStore.openNewProxy()" class="btn-sm btn-primary">+ New</button>
+      <button @click="proxyStore.refreshProxyList()" class="btn-sm btn-ghost">Refresh</button>
+      <button @click="proxyStore.saveProxyList()" class="btn-sm btn-ghost">Save</button>
     </div>
-
-    <div class="proxy-list section">
-      <h2>
-        Proxy List
-        <button @click="refreshProxyList">Refresh</button>
-        <button @click="saveProxyList">Save</button>
-      </h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Host</th>
-            <th>Agent</th>
-            <th>Target</th>
-            <th>Actions</th>
+    <div class="overflow-auto flex-1">
+      <table class="w-full text-sm border-collapse">
+        <thead class="sticky top-0">
+          <tr class="bg-raised">
+            <th class="px-3 py-2 text-left text-xs font-semibold text-fg-muted uppercase tracking-wider">Host</th>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-fg-muted uppercase tracking-wider">Agent</th>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-fg-muted uppercase tracking-wider">Target</th>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-fg-muted uppercase tracking-wider"></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="proxy in proxyList" :key="proxy.host">
-            <td>
-              <a :href="protocol + '//' + proxy.host" target="_blank">
+          <tr v-for="proxy in proxyStore.proxyList" :key="proxy.host" class="border-t border-border/50 hover:bg-raised/40 transition-colors">
+            <td class="px-3 py-2 font-mono text-xs">
+              <a :href="protocol + '//' + proxy.host" target="_blank" class="text-primary-light hover:text-primary hover:underline">
                 {{ proxy.host }}
               </a>
             </td>
-            <td>{{ proxy.agent_name }} ({{ proxy.agent_id }})</td>
-            <td>{{ proxy.target }}</td>
-            <td>
-              <button @click="deleteProxy(proxy.host)" class="delete">Delete</button>
-              <button @click="copyProxyInfo(proxy)" class="copy">Copy Info</button>
+            <td class="px-3 py-2 text-fg-dim text-xs font-mono">
+              {{ proxy.agent_name }}
+              <span class="text-fg-subtle">({{ proxy.agent_id }})</span>
+            </td>
+            <td class="px-3 py-2 text-fg-muted text-xs font-mono">{{ proxy.target }}</td>
+            <td class="px-3 py-2">
+              <div class="flex gap-1.5">
+                <button @click="proxyStore.openNewProxy({ ...proxy })" class="btn-sm btn-ghost">Copy</button>
+                <button @click="proxyStore.deleteProxy(proxy.host)" class="btn-sm btn-danger">Del</button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -132,77 +51,3 @@ async function saveProxyList() {
     </div>
   </div>
 </template>
-
-<style scoped>
-.proxy-manager {
-  display: grid;
-  grid-template-columns: 500px 1fr;
-  gap: 1rem;
-}
-
-.section {
-  background-color: #f9f9f9;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-}
-
-.proxy-list {
-  overflow: auto;
-  contain: size;
-}
-
-h2 {
-  margin: 0;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: normal;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  width: 100px;
-  margin-bottom: 0.5rem;
-  text-wrap: nowrap;
-}
-
-.form-group input {
-  flex: 1 0 100px;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-button.delete {
-  margin-right: 0.5rem;
-}
-
-button.delete:hover {
-  color: white;
-  background-color: #da190b;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-th {
-  background-color: #f5f5f5;
-}
-</style>
