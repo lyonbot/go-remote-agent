@@ -16,11 +16,7 @@ Client ──HTTP/WS──▶ Server ◀──HTTP polling── Agent (no publi
 ### Build
 
 ```sh
-# Development
-go run main.go
-
-# Production (Linux amd64)
-GOARCH=amd64 GOOS=linux go build -ldflags "-s -w" -tags release -o agent_linux_amd64 .
+make build
 ```
 
 ### Run as Server

@@ -75,16 +75,15 @@ base_url: http://localhost:8080
 EOF
 ```
 
-Open three terminals:
+Start all three processes (server, agent, frontend dev server) via tmux:
 
 ```sh
-# Terminal 1 — server
-go run main.go
+make dev
+```
 
-# Terminal 2 — agent
-go run main.go -a
+Send test commands:
 
-# Terminal 3 — send test commands
+```sh
 curl http://127.0.0.1:8080/api/agent/bot1/exec/ -F "cmd=uname -a" -F stderr=1
 curl http://127.0.0.1:8080/api/agent/bot1/exec/ -F "cmd=wc -c" -F stdin=@main.go -F stdout=1
 ```
@@ -92,9 +91,7 @@ curl http://127.0.0.1:8080/api/agent/bot1/exec/ -F "cmd=wc -c" -F stdin=@main.go
 ### Build Frontend
 
 ```sh
-cd frontend-src
-pnpm install
-pnpm build        # outputs to server/assets/
+make build
 ```
 
 ### Regenerate msgpack Code
