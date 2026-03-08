@@ -1,15 +1,17 @@
 # go-remote-agent
 
-A single binary that runs as either a **Server** or an **Agent**, enabling remote shell execution, interactive terminals, file transfer, and HTTP proxying — all without requiring a public IP on the agent side.
+A single binary that runs as a **Server**, **Agent**, or **CLI Client**, enabling remote shell execution, interactive terminals, file transfer, HTTP proxying, and TCP port forwarding — all without requiring a public IP on the agent side.
 
 ```
-Client ──HTTP/WS──▶ Server ◀──HTTP polling── Agent (no public IP needed)
+CLI Client ──TCP port forward──▶ Server ◀──WS tunnel── Agent (no public IP needed)
+Browser    ──HTTP/WS──────────▶ Server
 ```
 
 ## Modes
 
 - **Server** — starts an HTTP server; manages agent connections, exposes a REST API and web UI
 - **Agent** — connects to the server via HTTP long-polling; receives and executes tasks
+- **Client** — CLI tool that exposes TCP services running on the agent's network to local ports
 
 ## Quick Start
 
@@ -65,15 +67,17 @@ insecure: false # skip TLS verification
 
 ### CLI Flags
 
-| Flag             | Description                               |
-| ---------------- | ----------------------------------------- |
-| `-c <path>`      | Config file path (default: `config.yaml`) |
-| `-a`             | Enable agent mode                         |
-| `-n <name>`      | Agent / server name                       |
-| `-b <url>`       | Base URL (agent mode)                     |
-| `-i`             | Insecure TLS (agent mode)                 |
-| `-ak <key>`      | API key (server mode)                     |
-| `-psh <pattern>` | Proxy server host pattern (server mode)   |
+| Flag                               | Description                               |
+| ---------------------------------- | ----------------------------------------- |
+| `-c <path>`                        | Config file path (default: `config.yaml`) |
+| `-a`                               | Enable agent mode                         |
+| `-client`                          | Enable client (port forwarding) mode      |
+| `-n <name>`                        | Agent / server name                       |
+| `-b <url>`                         | Base URL (agent or client mode)           |
+| `-i`                               | Insecure TLS (agent or client mode)       |
+| `-ak <key>`                        | API key                                   |
+| `-psh <pattern>`                   | Proxy server host pattern (server mode)   |
+| `-L <local>:<remoteAddr>:<remote>` | Port forward (client mode, repeatable)    |
 
 > All string flags support environment variable substitution: `-b '$SERVER_URL'`
 
@@ -132,6 +136,27 @@ Form fields: `host`, `agent_name` or `agent_id`, `target`, `replace_host` (optio
 | Method | Path              | Description                             |
 | ------ | ----------------- | --------------------------------------- |
 | `POST` | `/api/saveConfig` | Persist current config to `config.yaml` |
+
+## TCP Port Forwarding (Client Mode)
+
+Expose a TCP service on the agent's network to a local port — similar to `ssh -L`:
+
+```
+Local port ──► CLI Client ──► Server ──► Agent ──► remote TCP service
+```
+
+```sh
+./agent_host -client \
+  -b http://your-server:8080 \
+  -ak YOUR_API_KEY \
+  -n AGENT_NAME \
+  -L 5432:db-internal:5432 \
+  -L 8080:localhost:3000
+```
+
+Multiple `-L` flags are supported. Short form `-L localPort:remotePort` assumes `localhost` on the agent side. The client reuses flags `-b`, `-n`, `-ak`, `-i` — same as agent mode.
+
+Implementation: `client/main.go`
 
 ## Proxy Host (ngrok-like)
 

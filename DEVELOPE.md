@@ -4,12 +4,14 @@
 
 ```mermaid
 graph TD
-    Client["Browser / curl"]
+    Browser["Browser / curl"]
+    CLI["CLI Client\n(client mode)"]
     Server["Server (HTTP)"]
     Agent["Agent (HTTP client)"]
     Target["Target Service"]
 
-    Client -- "REST / WebSocket" --> Server
+    Browser -- "REST / WebSocket" --> Server
+    CLI -- "WebSocket omni\n/api/agent/{name}/omni/" --> Server
     Agent -- "Long-poll task stream\n/api/agent/{name}" --> Server
     Agent -- "WebSocket tunnel\n/api/agent/{name}/{token}" --> Server
     Server -- "Omni / Shell / Upgrade\nvia tunnel" --> Agent
@@ -23,12 +25,14 @@ Server distinguishes agent vs client traffic by `User-Agent` header:
 ## Directory Structure
 
 ```
-main.go                     # entry: delegates to agent.RunAgent or server.RunServer
+main.go                     # entry: delegates to client.Run, agent.RunAgent, or server.RunServer
 biz/
-  config.go                 # CLI flags + YAML config parsing
+  config.go                 # CLI flags + YAML config parsing (all modes)
   protocol.go               # msgpack message types (AgentNotify, ProxyHttpRequest, …)
   protocol_gen.go           # auto-generated msgpack serialization (do not edit)
   version.go                # build version, upgrade compatibility check
+client/
+  main.go                   # TCP port-forwarding CLI client (-client mode)
 agent/
   main.go                   # task stream listener + dispatcher
   shell.go                  # shell command execution over WebSocket

@@ -23,7 +23,17 @@ type AgentConfig struct {
 	// for agent
 	BaseUrl  string `yaml:"base_url"` // base url, including protocol and port, without `/api`
 	Insecure bool
+
+	// for client (port forwarding CLI)
+	AsClient       bool     `yaml:"as_client"`
+	ClientForwards []string `yaml:"-"` // command-line only: localPort:remoteAddr:remotePort
 }
+
+// multiFlag allows a flag to be specified multiple times
+type MultiFlag []string
+
+func (f *MultiFlag) String() string { return strings.Join(*f, ", ") }
+func (f *MultiFlag) Set(v string) error { *f = append(*f, v); return nil }
 
 type SavedProxyConfig struct {
 	Host      string `yaml:"host"`
@@ -60,11 +70,14 @@ func WriteConfigFile() error {
 func InitConfig() {
 	configPath := flag.String("c", "config.yaml", "Config path")
 	asAgent := flag.Bool("a", false, "Set agent mode")
+	asClient := flag.Bool("client", false, "Set client mode (TCP port forwarding)")
 	name := flag.String("n", "", "Agent name")
-	baseUrl := flag.String("b", "", "Base URL (only for agent)")
-	insecure := flag.Bool("i", false, "Insecure (only for agent)")
-	api_key := flag.String("ak", "", "API key (only for server)")
+	baseUrl := flag.String("b", "", "Base URL (for agent or client)")
+	insecure := flag.Bool("i", false, "Insecure TLS (for agent or client)")
+	api_key := flag.String("ak", "", "API key")
 	proxy_server_host := flag.String("psh", "", "Proxy server host (only for server, must contains *)")
+	var clientForwards MultiFlag
+	flag.Var(&clientForwards, "L", "Port forward (client mode): localPort:remoteAddr:remotePort (repeatable)")
 	flag.Parse()
 
 	if data, err := os.ReadFile(maybeEnv(*configPath)); err == nil {
@@ -79,6 +92,9 @@ func InitConfig() {
 	if *asAgent {
 		Config.AsAgent = *asAgent
 	}
+	if *asClient {
+		Config.AsClient = *asClient
+	}
 	if *name != "" {
 		Config.Name = maybeEnv(*name)
 	}
@@ -88,9 +104,28 @@ func InitConfig() {
 	if *proxy_server_host != "" {
 		Config.ProxyServerHost = maybeEnv(*proxy_server_host)
 	}
+	if len(clientForwards) > 0 {
+		Config.ClientForwards = clientForwards
+	}
 
 	// defaults
-	if Config.AsAgent {
+	if Config.AsClient {
+		if *baseUrl != "" {
+			Config.BaseUrl = maybeEnv(*baseUrl)
+		}
+		if *insecure {
+			Config.Insecure = true
+		}
+		if Config.Name == "" {
+			log.Fatalf("Agent name (-n) is required for client mode")
+		}
+		if Config.BaseUrl == "" {
+			log.Fatalf("Server URL (-b) is required for client mode")
+		}
+		if len(Config.ClientForwards) == 0 {
+			log.Fatalf("At least one port forward (-L localPort:remoteAddr:remotePort) is required")
+		}
+	} else if Config.AsAgent {
 		if *baseUrl != "" {
 			Config.BaseUrl = maybeEnv(*baseUrl)
 		}
